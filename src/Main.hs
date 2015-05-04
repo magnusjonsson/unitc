@@ -1,7 +1,13 @@
+import App.FindType as FindType
 import App.FindUnit as FindUnit
+import App.SymTab as SymTab
+import App.Type as Type
 import App.Unit as Unit
 import Control.Monad
+import Control.Monad.Trans.State.Strict
 import Language.C as C
+import Language.C.Analysis.DefTable
+import Language.C.Analysis.TravMonad
 import Language.C.Data.Ident
 import Language.C.Syntax.AST
 import Language.C.System.GCC as GCC
@@ -52,6 +58,9 @@ analyzeCDeclTriplet defaultUnit r = do
   print combinedUnit
   putStrLn "init:"
   print init
+  case init of
+    Nothing -> return ()
+    Just init' -> analyzeCInit init'
   putStrLn "expr:"
   print expr
       
@@ -110,30 +119,12 @@ analyzeCBlockItem item =
       CNestedFunDef f -> analyzeCFunDef f
 
 analyzeCExpr :: CExpr -> IO ()
-analyzeCExpr expr = do
-  case expr of
-    CComma es _ -> forM_ es analyzeCExpr
-    CAssign op e1 e2 _ -> analyzeCExpr e1 >> analyzeCExpr e2
-    CCond e1 (Just e2) e3 _ -> analyzeCExpr e1 >> analyzeCExpr e2 >> analyzeCExpr e3
-    CCond e1 Nothing e3 _ -> analyzeCExpr e1 >> analyzeCExpr e3
-    CBinary op e1 e2 _ -> analyzeCExpr e1 >> analyzeCExpr e2
-    CCast decl e _ -> analyzeCExpr e
-    CUnary op e _ -> analyzeCExpr e
-    CSizeofExpr e _ -> analyzeCExpr e
-    CSizeofType decl _ -> return ()
-    CAlignofExpr e _ -> analyzeCExpr e
-    CAlignofType decl _ -> return ()
-    CComplexReal e _ -> analyzeCExpr e
-    CComplexImag e _ -> analyzeCExpr e
-    CIndex e1 e2 _ -> analyzeCExpr e1 >> analyzeCExpr e2
-    CCall e1 es _ -> analyzeCExpr e1 >> forM_ es analyzeCExpr
-    CMember e ident bool _ -> analyzeCExpr e
-    CVar ident _ -> return ()
-    CConst c -> return ()
-    CCompoundLit decl initList _ -> forM_ initList analyzeCInitListItem
-    CStatExpr stat _ -> analyzeCStat stat
-    CLabAddrExpr ident _ -> return ()
-    CBuiltinExpr builtin -> return ()
+analyzeCExpr expr =
+    do putStrLn "Expr:"
+       print (pretty expr)
+       putStrLn "Type:"
+       typ <- findType SymTab.empty expr
+       print typ
 
 analyzeCInitListItem :: ([CDesignator], CInit) -> IO ()
 analyzeCInitListItem (desigs, init) =
