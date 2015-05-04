@@ -1,13 +1,13 @@
 module App.Unit where
 
-import Prelude hiding (div)
+import Prelude hiding (div, recip)
 import Data.Ratio
 import Data.Map.Strict as Map
 
-type Unit = Map String R
-type R = Ratio Integer
+type Unit = Map String Q
+type Q = Ratio Integer
 
-nonzero :: R -> Maybe R
+nonzero :: Q -> Maybe Q
 nonzero 0 = Nothing
 nonzero x = Just x
 
@@ -24,4 +24,7 @@ recip :: Unit -> Unit
 recip = Map.map negate
             
 div ::  Unit -> Unit -> Unit
-div = Map.mergeWithKey (\k p1 p2 -> nonzero (p1 - p2)) id id
+div = Map.mergeWithKey (\k p1 p2 -> nonzero (p1 - p2)) id recip
+
+pow :: Unit -> Q -> Unit
+pow u q = Map.map (q *) u

@@ -1,9 +1,11 @@
+import App.FindUnit as FindUnit
+import App.Unit as Unit
 import Control.Monad
 import Language.C as C
+import Language.C.Data.Ident
 import Language.C.Syntax.AST
 import Language.C.System.GCC as GCC
 import System.Environment (getArgs)
-import App.Unit as U
 
 main :: IO ()
 main = do
@@ -23,7 +25,7 @@ analyzeCExtDecl extDecl =
       CDeclExt d -> analyzeCDecl d
       CFDefExt f -> analyzeCFunDef f
       CAsmExt _ _ -> return ()
-
+                     
 analyzeCDecl :: CDecl -> IO ()
 analyzeCDecl d = do
   putStrLn "CDecl:"
@@ -31,18 +33,26 @@ analyzeCDecl d = do
   let (CDecl specs triplets _) = d
   putStrLn "specs:"
   print specs
+  putStrLn "unit:"
+  unit <- findUnit specs
   putStrLn "triplets"
-  forM_ triplets analyzeCDeclTriplet
+  forM_ triplets (analyzeCDeclTriplet unit)
 
-analyzeCDeclTriplet :: (Maybe CDeclr, Maybe CInit, Maybe CExpr) -> IO ()
-analyzeCDeclTriplet r = do
-  print "DeclTriplet"
+analyzeCDeclTriplet :: Maybe Unit -> (Maybe CDeclr, Maybe CInit, Maybe CExpr) -> IO ()
+analyzeCDeclTriplet defaultUnit r = do
+  putStrLn "DeclTriplet"
   let (declr, init, expr) = r
-  print "declr:"
+  putStrLn "declr:"
   print declr
-  print "init:"
+  declrUnit <- findUnit declr
+  putStrLn "declr unit:"
+  print declrUnit
+  putStrLn "combined unit:"
+  combinedUnit <- findUnit [defaultUnit, declrUnit]
+  print combinedUnit
+  putStrLn "init:"
   print init
-  print "expr:"
+  putStrLn "expr:"
   print expr
       
 analyzeCFunDef :: CFunDef -> IO ()
