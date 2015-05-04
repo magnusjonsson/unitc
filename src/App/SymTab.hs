@@ -13,3 +13,7 @@ empty = SymTab { variables = Map.empty }
 lookupVariable :: String -> SymTab -> Maybe Type
 lookupVariable name symtab =
     Map.lookup name (variables symtab)
+
+bindVariable :: String -> Type -> SymTab -> SymTab
+bindVariable name ty st =
+    SymTab { variables = Map.insert name ty (variables st) }

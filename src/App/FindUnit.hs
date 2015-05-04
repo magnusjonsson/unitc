@@ -64,10 +64,6 @@ parseCExprAsUnit expr =
           do u1 <- parseCExprAsUnit e1
              u2 <- parseCExprAsUnit e2
              return (liftM2 Unit.div u1 u2)
-      CBinary CXorOp e1 e2 _ ->
-          do u <- parseCExprAsUnit e1
-             q <- parseCExprAsQ e2
-             return (liftM2 Unit.pow u q)
       CVar (Ident name _ _) _ -> return (Just (Unit.fundamental name))
       CConst (CIntConst (CInteger 1 _ _) _) -> return (Just Unit.one)
       _ -> do print ("Can't parse expression as unit: " ++ show (pretty expr))

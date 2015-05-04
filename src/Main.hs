@@ -80,44 +80,12 @@ analyzeCFunDef f = do
 
 analyzeCStat :: CStat -> IO ()
 analyzeCStat stat =
-    case stat of
-      CLabel _ _ _ _ -> return ()
-      CCase e b _ -> analyzeCExpr e >> analyzeCStat b
-      CCases e1 e2 b _ -> analyzeCExpr e1 >> analyzeCExpr e2 >> analyzeCStat b
-      CDefault b _ -> analyzeCStat b
-      CExpr Nothing _ -> return ()
-      CExpr (Just e) _ -> analyzeCExpr e
-      CCompound _ blockItems _ -> forM_ blockItems analyzeCBlockItem
-      CIf e1 s1 Nothing _ -> analyzeCExpr e1 >> analyzeCStat s1
-      CIf e1 s1 (Just s2) _ -> analyzeCExpr e1 >> analyzeCStat s1 >> analyzeCStat s2
-      CSwitch e b _ -> analyzeCExpr e >> analyzeCStat b
-      CWhile e b _ _ -> analyzeCExpr e >> analyzeCStat b
-      CFor init cond incr b _ -> do
-          case init of
-            Left Nothing -> return ()
-            Left (Just e) -> analyzeCExpr e
-            Right d -> analyzeCDecl d
-          case cond of
-            Nothing -> return ()
-            Just e -> analyzeCExpr e
-          case incr of
-            Nothing -> return ()
-            Just e -> analyzeCExpr e
-          analyzeCStat b
-      CGoto _ _ -> return ()
-      CGotoPtr e _ -> analyzeCExpr e
-      CCont _ -> return ()
-      CBreak _ -> return ()
-      CReturn Nothing _ -> return ()
-      CReturn (Just e) _ -> analyzeCExpr e
-
-analyzeCBlockItem :: CBlockItem -> IO ()
-analyzeCBlockItem item =
-    case item of
-      CBlockStmt s -> analyzeCStat s
-      CBlockDecl d -> analyzeCDecl d
-      CNestedFunDef f -> analyzeCFunDef f
-
+    do putStrLn "Stat:"
+       print (pretty stat)
+       putStrLn "Type:"
+       typ <- findType SymTab.empty stat
+       print typ
+    
 analyzeCExpr :: CExpr -> IO ()
 analyzeCExpr expr =
     do putStrLn "Expr:"
