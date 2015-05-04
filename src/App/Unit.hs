@@ -1,4 +1,4 @@
-module Unit where
+module App.Unit where
 
 import Prelude hiding (div)
 import Data.Ratio
