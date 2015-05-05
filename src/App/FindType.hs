@@ -90,8 +90,18 @@ instance FindType CStat where
           CGotoPtr e _ -> putStrLn "TODO findType CGotoPtr" >> return Nothing
           CCont _ -> putStrLn "TODO findType CCont" >> return Nothing
           CBreak _ -> putStrLn "TODO findType CBreak" >> return Nothing
-          CReturn Nothing _ -> putStrLn "TODO findType CReturn" >> return Nothing
-          CReturn (Just e) _ -> putStrLn "TODO findType CReturn" >> return Nothing
+          CReturn e _ ->
+              do ty <- case e of
+                         Nothing -> return (Just Other)
+                         Just e' -> findType st e'
+                 case returnType st of
+                   Nothing -> putStrLn "Encountered return statement but not sure what return type is expected!"
+                   Just r ->
+                       if ty /= Just r then
+                           putStrLn ("Type " ++ show ty ++ " does not agree with return type " ++ show r)
+                       else
+                           return ()
+                 return Nothing
 
 instance FindType CDeclSpec where
     findType st declSpec =
@@ -217,3 +227,20 @@ deriveType1 d ty =
       CFunDeclr _ _ _ ->
           do putStrLn "TODO deriveType CFunDeclr"
              return ty
+
+applyFunDef :: SymTab -> CFunDef -> IO SymTab
+applyFunDef st f =
+    case f of
+      CFunDef specs (CDeclr ident derivedDeclrs _ attrs _) argDecls body _ ->
+          do specType <- findType st specs
+             attrType <- findType st attrs
+             returnType <- deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
+             st' <- case (ident, returnType) of
+                      (Just (Ident name _ _), Just rt) -> return (SymTab.bindVariable name rt st)
+                      (Nothing, _) -> do putStrLn "Strange fundef! Function has no name!"
+                                         return st
+                      (_, Nothing) -> do putStrLn "Could not determine return type"
+                                         return st
+             putStrLn "TODO add args to symtab"
+             _ <- findType (SymTab.setReturnType returnType st') body
+             return st'

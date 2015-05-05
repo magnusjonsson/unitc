@@ -65,18 +65,9 @@ analyzeCDeclTriplet defaultUnit r = do
   print expr
       
 analyzeCFunDef :: CFunDef -> IO ()
-analyzeCFunDef f = do
-    putStrLn "Analyzing FunDecl:"
-    print (pretty f)
-    let CFunDef specs declr decl body _ = f
-    putStrLn "specs:"
-    print specs
-    putStrLn "declr:"
-    print (pretty declr)
-    putStrLn "decl:"
-    print decl
-    putStrLn "body:"
-    analyzeCStat body
+analyzeCFunDef f =
+    do _ <- applyFunDef SymTab.empty f
+       return ()
 
 analyzeCStat :: CStat -> IO ()
 analyzeCStat stat =
