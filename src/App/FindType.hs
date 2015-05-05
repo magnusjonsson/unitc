@@ -93,7 +93,57 @@ instance FindType CStat where
           CReturn Nothing _ -> putStrLn "TODO findType CReturn" >> return Nothing
           CReturn (Just e) _ -> putStrLn "TODO findType CReturn" >> return Nothing
 
+instance FindType CDeclSpec where
+    findType st declSpec =
+        case declSpec of
+          CStorageSpec _ -> return Nothing
+          CTypeSpec typeSpec -> findType st typeSpec
+          CTypeQual typeQual -> findType st typeQual
 
+instance FindType CTypeSpec where
+    findType st typeSpec =
+        case typeSpec of
+          CVoidType _ -> return (Just Other)
+          CCharType _ -> return (Just (Numeric Nothing))
+          CShortType _ -> return (Just (Numeric Nothing))
+          CIntType _ -> return (Just (Numeric Nothing))
+          CLongType _ -> return (Just (Numeric Nothing))
+          CFloatType _ -> return (Just (Numeric Nothing))
+          CDoubleType _ -> return (Just (Numeric Nothing))
+          CSignedType _ -> return (Just (Numeric Nothing))
+          CUnsigType _ -> return (Just (Numeric Nothing))
+          CBoolType _ -> return (Just Other)
+          CComplexType _ -> return (Just (Numeric Nothing))
+          CTypeDef ident _ ->
+              do putStrLn "CTypeSpec: typedef type specifiers not yet handled"
+                 return Nothing
+          CTypeOfExpr e _ ->
+              do putStrLn "CTypeSpec: typeof(expr) type specifiers not yet handled"
+                 return Nothing
+          CTypeOfType t _ ->
+              do putStrLn "CTypeSpec: typeof(type) type specifiers not yet handled"
+                 return Nothing
+
+instance FindType CTypeQual where
+    findType st typeQual =
+        case typeQual of
+          CConstQual _ -> return Nothing
+          CVolatQual _ -> return Nothing
+          CRestrQual _ -> return Nothing
+          CInlineQual _ -> return Nothing
+          CAttrQual attr -> findType st attr
+
+instance FindType CAttr where
+    findType st attr =
+        do unit <- findUnit attr
+           case unit of
+             Nothing -> return Nothing
+             Just u -> return (Just (Numeric (Just u)))
+
+instance FindType a => FindType [a] where
+    findType st list =
+        do ts <- mapM (findType st) list
+           return (foldl Type.mergeMaybe Nothing ts)
 
 blockType :: SymTab -> Maybe Type -> [CBlockItem] -> IO (Maybe Type)
 blockType st lastType [] = return lastType
@@ -115,38 +165,55 @@ applyDecl :: SymTab -> CDecl -> IO SymTab
 applyDecl st decl =
     case decl of
       CDecl declSpecs triplets _ ->
-          do unit <- findUnit declSpecs
-             applyTriplets st unit triplets
+          do ty <- findType st declSpecs
+             applyTriplets st ty triplets
 
 type Triplet = (Maybe CDeclr, Maybe CInit, Maybe CExpr)
                            
-applyTriplets :: SymTab -> Maybe Unit -> [Triplet] -> IO SymTab
-applyTriplets st specUnit [] = return st
-applyTriplets st specUnit (triplet : r) = do st' <- applyTriplet st specUnit triplet
-                                             applyTriplets st' specUnit r
+applyTriplets :: SymTab -> Maybe Type -> [Triplet] -> IO SymTab
+applyTriplets st specType triplets =
+    case triplets of
+      [] -> return st
+      (triplet : r) -> do st' <- applyTriplet st specType triplet
+                          applyTriplets st' specType r
 
-
-applyTriplet :: SymTab -> Maybe Unit -> Triplet -> IO SymTab
-applyTriplet st specUnit (declr, initr, bitFieldSize) =
-    do declrUnit <- findUnit declr
-       unit <- findUnit [specUnit, declrUnit]
-
-       -- Todo don't guess type like this... look at actual specifiers to determine if it's numeric
-       let ty = case unit of
-                  Nothing -> Other
-                  Just u -> Numeric (Just u)
+applyTriplet :: SymTab -> Maybe Type -> Triplet -> IO SymTab
+applyTriplet st specType (declr, initr, bitFieldSize) =
+    do ty <- case declr of
+               Just (CDeclr _ derivedDeclarators _ attrs _) ->
+                   do attrType <- findType st attrs
+                      deriveType derivedDeclarators (Type.mergeMaybe specType attrType)
+               Nothing -> return specType
        case initr of
          Just (CInitExpr e _) ->
              do initType <- findType st e
-                if initType /= Just ty then
+                if initType /= ty then
                     putStrLn ("Can't assign from " ++ show initType ++ " to " ++ show ty)
                 else
                     return ()
          Nothing -> return ()
          _ -> putStrLn ("TODO applyTriplet initr=" ++ show initr)
-
        case declr of
          Just (CDeclr (Just (Ident name _ _)) _ _ _ _) ->
-             return (SymTab.bindVariable name ty st)
+             case ty of
+               Just ty' -> return (SymTab.bindVariable name ty' st)
+               Nothing -> do putStrLn ("Could not infer type for " ++ name)
+                             return st
          _ -> do putStrLn ("Unhandled CDeclr: " ++ show declr)
                  return st
+
+deriveType :: [CDerivedDeclr] -> Maybe Type -> IO (Maybe Type)
+deriveType ds ty =
+    case ds of
+      [] -> return ty
+      (d : dr) -> do ty' <- deriveType dr ty
+                     deriveType1 d ty'
+
+deriveType1 :: CDerivedDeclr -> Maybe Type -> IO (Maybe Type)
+deriveType1 d ty =
+    case d of
+      CPtrDeclr _ _ -> return ty
+      CArrDeclr _ _ _ -> return ty
+      CFunDeclr _ _ _ ->
+          do putStrLn "TODO deriveType CFunDeclr"
+             return ty
