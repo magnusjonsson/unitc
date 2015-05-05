@@ -65,11 +65,19 @@ instance FindType CExpr where
                                        Nothing -> do putStrLn ("Variable not in scope: " ++ name)
                                                      return Nothing
                                        Just ty -> return (Just ty)
-          CConst c -> putStrLn "TODO findType CConst" >> return Nothing
+          CConst c -> findType st c
           CCompoundLit decl initList _ -> putStrLn "TODO findType CCompoundLit" >> return Nothing
           CStatExpr stat _ -> putStrLn "TODO findType CStatExpr" >> return Nothing
           CLabAddrExpr ident _ -> putStrLn "TODO findType CLabAddrExpr" >> return Nothing
           CBuiltinExpr builtin -> putStrLn "TODO findType CBuiltinExpr" >> return Nothing
+
+instance FindType CConst where
+    findType st c =
+        case c of
+          CIntConst _ _ -> return (Just (Numeric Nothing))
+          CCharConst _ _ -> return (Just Other)
+          CFloatConst _ _ -> return (Just (Numeric Nothing))
+          CStrConst _ _ -> return (Just Other)
 
 instance FindType CStat where
     findType st stat =
