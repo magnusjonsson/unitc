@@ -20,6 +20,13 @@ bindVariable name ty st =
     SymTab { variables = Map.insert name ty (variables st),
              returnType = returnType st
            }
+
+bindVariables :: [(String, Type)] -> SymTab -> SymTab
+bindVariables pairs st =
+    case pairs of
+      [] -> st
+      (name, ty) : rest -> bindVariables rest (bindVariable name ty st)
+
 setReturnType :: Maybe Type -> SymTab -> SymTab
 setReturnType rt st =
     SymTab { variables = variables st,

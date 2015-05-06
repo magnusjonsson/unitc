@@ -198,9 +198,9 @@ applyTriplets st specType triplets =
 applyTriplet :: SymTab -> Maybe Type -> Triplet -> IO SymTab
 applyTriplet st specType (declr, initr, bitFieldSize) =
     do ty <- case declr of
-               Just (CDeclr _ derivedDeclarators _ attrs _) ->
+               Just (CDeclr _ derivedDeclrs _ attrs _) ->
                    do attrType <- findType st attrs
-                      deriveType derivedDeclarators (Type.mergeMaybe specType attrType)
+                      deriveType st derivedDeclrs (Type.mergeMaybe specType attrType)
                Nothing -> return specType
        case initr of
          Just (CInitExpr e _) ->
@@ -220,21 +220,64 @@ applyTriplet st specType (declr, initr, bitFieldSize) =
          _ -> do putStrLn ("Unhandled CDeclr: " ++ show declr)
                  return st
 
-deriveType :: [CDerivedDeclr] -> Maybe Type -> IO (Maybe Type)
-deriveType ds ty =
+deriveType :: SymTab -> [CDerivedDeclr] -> Maybe Type -> IO (Maybe Type)
+deriveType st ds ty =
     case ds of
       [] -> return ty
-      (d : dr) -> do ty' <- deriveType dr ty
-                     deriveType1 d ty'
+      (d : dr) -> do ty' <- deriveType st dr ty
+                     deriveType1 st d ty'
 
-deriveType1 :: CDerivedDeclr -> Maybe Type -> IO (Maybe Type)
-deriveType1 d ty =
-    case d of
-      CPtrDeclr _ _ -> return ty
-      CArrDeclr _ _ _ -> return ty
-      CFunDeclr _ _ _ ->
-          do putStrLn "TODO deriveType CFunDeclr"
-             return ty
+deriveType1 :: SymTab -> CDerivedDeclr -> Maybe Type -> IO (Maybe Type)
+deriveType1 st d maybeTy =
+    case maybeTy of
+      Nothing -> return Nothing
+      Just ty ->
+          case d of
+            CPtrDeclr _ _ -> return (Just ty)
+            CArrDeclr _ _ _ -> return (Just ty)
+            CFunDeclr (Left idents) attrs _ ->
+                do putStrLn "TODO deriveType1 CFunDeclr with old-style args"
+                   return Nothing
+            CFunDeclr (Right (cdecls, dots)) attrs _ ->
+                do maybeArgs <- mapM (argType st) cdecls
+                   case sequence maybeArgs of -- maybe monad
+                     Nothing -> return Nothing
+                     Just args -> return (Just (Fun ty args dots))
+
+argType :: SymTab -> CDecl -> IO (Maybe Type)
+argType st cdecl =
+    case cdecl of
+      CDecl specs [(Just (CDeclr _ derivedDeclrs _ attrs _), Nothing, Nothing)] _ ->
+          do specType <- findType st specs
+             attrType <- findType st attrs
+             deriveType st derivedDeclrs (Type.mergeMaybe specType attrType)
+      _ -> do putStrLn "Strange argument!"
+              return Nothing
+
+funDefArgNames :: CFunDef -> IO (Maybe [String])
+funDefArgNames f =
+    case f of
+      CFunDef _ (CDeclr _ derivedDeclrs _ _ _) _ _ _ ->
+          case reverse (derivedDeclrs) of
+            [] -> do putStrLn "Fundef without derived declarator??"
+                     return Nothing
+            lastDerivedDeclr : _ ->
+                case lastDerivedDeclr of
+                  CFunDeclr (Left idents) _ _ ->
+                      do putStrLn "TODO argNames CFunDeclr with old-style args"
+                         return Nothing
+                  CFunDeclr (Right (cdecls, _)) _ _->
+                      do maybeNames <- mapM argName cdecls
+                         return (sequence maybeNames) -- list monad
+                  _ -> do putStrLn "TODO Fundef without function declarator?"
+                          return Nothing
+
+argName :: CDecl ->IO (Maybe String)
+argName cdecl =
+    case cdecl of
+      CDecl _ [(Just (CDeclr (Just (Ident name _ _)) _ _ _ _), _, _)] _ -> return (Just name)
+      _ -> do putStrLn "Can't find name of argument"
+              return Nothing
 
 applyFunDef :: SymTab -> CFunDef -> IO SymTab
 applyFunDef st f =
@@ -242,13 +285,28 @@ applyFunDef st f =
       CFunDef specs (CDeclr ident derivedDeclrs _ attrs _) argDecls body _ ->
           do specType <- findType st specs
              attrType <- findType st attrs
-             returnType <- deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
-             st' <- case (ident, returnType) of
-                      (Just (Ident name _ _), Just rt) -> return (SymTab.bindVariable name rt st)
-                      (Nothing, _) -> do putStrLn "Strange fundef! Function has no name!"
-                                         return st
-                      (_, Nothing) -> do putStrLn "Could not determine return type"
-                                         return st
-             putStrLn "TODO add args to symtab"
-             _ <- findType (SymTab.setReturnType returnType st') body
+             ty <- deriveType st derivedDeclrs (Type.mergeMaybe specType attrType)
+             st' <-
+                 case (ident, ty) of
+                   (Just (Ident name _ _), Just ty') ->
+                       return (SymTab.bindVariable name ty' st)
+                   (Nothing, _) -> do putStrLn "Strange fundef! Function has no name!"
+                                      return st
+                   (_, Nothing) -> do putStrLn "Could not determine function type"
+                                      return st
+             st'' <-
+                 case ty of
+                   Just (Fun rt types _) ->
+                       do argNames <- funDefArgNames f
+                          case argNames of
+                            Nothing -> return st'
+                            Just names ->
+                                if length names /= length types then
+                                    do putStrLn "Number of types and name os of args different??"
+                                       return st'
+                                else
+                                    return (SymTab.setReturnType (Just rt) $
+                                            SymTab.bindVariables (zip names types) $ st')
+                   _ -> return st'
+             _ <- findType st'' body
              return st'
