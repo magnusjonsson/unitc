@@ -25,7 +25,6 @@ instance FindType CExpr where
               do mt1 <- findType st e1
                  mt2 <- findType st e2
                  case (mt1, mt2) of
-                   (Nothing, Nothing) -> return Nothing
                    (Just t1, Just t2) ->
                        case op of
                          CAssignOp -> if t1 == t2 then return (Just t1)
@@ -33,8 +32,7 @@ instance FindType CExpr where
                                               return Nothing
                          _ -> do putStrLn ("TODO findType CAssign " ++ show op)
                                  return Nothing
-                   _ -> do putStrLn "Missing unit on one side of assignment operator"
-                           return Nothing
+                   _ -> return Nothing
           CCond e1 (Just e2) e3 _ -> putStrLn "TODO findType CCond" >> return Nothing
           CCond e1 Nothing e3 _ -> putStrLn "TODO findType CCond" >> return Nothing
           CBinary op e1 e2 _ ->
@@ -231,10 +229,13 @@ applyTriplet st specType (declr, initr, bitFieldSize) =
        case initr of
          Just (CInitExpr e _) ->
              do initType <- findType st e
-                if initType /= ty then
-                    putStrLn ("Can't assign from " ++ show initType ++ " to " ++ show ty)
-                else
-                    return ()
+                case (ty, initType) of
+                  (Just ty', Just initType') ->
+                      if initType' /= ty' then
+                          putStrLn ("Can't assign from " ++ show initType' ++ " to " ++ show ty')
+                      else
+                          return ()
+                  _ -> return ()
          Nothing -> return ()
          _ -> putStrLn ("TODO applyTriplet initr=" ++ show initr)
        case declr of
