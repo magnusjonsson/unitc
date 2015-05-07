@@ -59,7 +59,17 @@ instance FindType CExpr where
           CComplexReal e _ -> putStrLn "TODO findType CComplexReal" >> return Nothing
           CComplexImag e _ -> putStrLn "TODO findType CComplexImag" >> return Nothing
           CIndex e1 e2 _ -> putStrLn "TODO findType CIndex" >> return Nothing
-          CCall e1 es _ -> putStrLn "TODO findType CCall" >> return Nothing
+          CCall e1 es _ ->
+              do t1 <- findType st e1
+                 actuals <- mapM (findType st) es
+                 case t1 of
+                   Nothing -> return Nothing
+                   Just (Fun rt formals acceptsVarArgs) ->
+                       do checkArgs actuals formals acceptsVarArgs
+                          return (Just rt)
+                   Just _ ->
+                       do putStrLn ("Non-function called as a function: " ++ show (pretty e1))
+                          return Nothing
           CMember e ident bool _ -> putStrLn "TODO findType CMember" >> return Nothing
           CVar (Ident name _ _) _ -> case SymTab.lookupVariable name st of
                                        Nothing -> do putStrLn ("Variable not in scope: " ++ name)
@@ -70,6 +80,22 @@ instance FindType CExpr where
           CStatExpr stat _ -> putStrLn "TODO findType CStatExpr" >> return Nothing
           CLabAddrExpr ident _ -> putStrLn "TODO findType CLabAddrExpr" >> return Nothing
           CBuiltinExpr builtin -> putStrLn "TODO findType CBuiltinExpr" >> return Nothing
+
+checkArgs :: [Maybe Type] -> [Type] -> Bool -> IO ()
+checkArgs actuals formals acceptVarArgs =
+    case (actuals, formals, acceptVarArgs) of
+      ([], [], _) -> return ()
+      ([], _, _) -> putStrLn "Too few args"
+      (_, [], True) -> return ()
+      (_, [], False) -> putStrLn "Too many args"
+      (Nothing : as, f : fs, _) ->
+          checkArgs as fs acceptVarArgs
+      (Just a : as, f : fs, _) ->
+          do if a /= f then
+                 putStrLn ("Argument type mismatch. Found " ++ show a ++ ", expected " ++ show f ++ ".")
+             else
+                 return ()
+             checkArgs as fs acceptVarArgs
 
 instance FindType CConst where
     findType st c =
