@@ -5,6 +5,7 @@ import App.Type as Type
 import App.Unit as Unit
 import Control.Monad
 import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.Class (lift)
 import Language.C as C
 import Language.C.Analysis.DefTable
 import Language.C.Analysis.TravMonad
@@ -19,78 +20,35 @@ main = do
   res <- C.parseCFile (newGCC "gcc") Nothing [] cFile
   case res of
     Left error -> print error
-    Right u -> analyzeCTranslUnit u
+    Right u -> evalStateT (analyzeCTranslUnit u) SymTab.empty
+               
+type Analysis a = StateT SymTab IO a
 
-analyzeCTranslUnit :: CTranslUnit -> IO ()
+getSymTab :: Analysis SymTab
+getSymTab = get
+
+setSymTab :: SymTab -> Analysis ()
+setSymTab = put
+
+analyzeCTranslUnit :: CTranslUnit -> Analysis ()
 analyzeCTranslUnit (CTranslUnit decls _) =
     forM_ decls analyzeCExtDecl 
 
-analyzeCExtDecl :: CExtDecl -> IO ()
+analyzeCExtDecl :: CExtDecl -> Analysis ()
 analyzeCExtDecl extDecl =
     case extDecl of
       CDeclExt d -> analyzeCDecl d
       CFDefExt f -> analyzeCFunDef f
       CAsmExt _ _ -> return ()
                      
-analyzeCDecl :: CDecl -> IO ()
+analyzeCDecl :: CDecl -> Analysis ()
 analyzeCDecl d = do
-  putStrLn "CDecl:"
-  print (pretty d)           
-  let (CDecl specs triplets _) = d
-  putStrLn "specs:"
-  print specs
-  putStrLn "unit:"
-  unit <- findUnit specs
-  putStrLn "triplets"
-  forM_ triplets (analyzeCDeclTriplet unit)
+  st <- getSymTab
+  st' <- lift (applyDecl st d)
+  setSymTab st'
 
-analyzeCDeclTriplet :: Maybe Unit -> (Maybe CDeclr, Maybe CInit, Maybe CExpr) -> IO ()
-analyzeCDeclTriplet defaultUnit r = do
-  putStrLn "DeclTriplet"
-  let (declr, init, expr) = r
-  putStrLn "declr:"
-  print declr
-  declrUnit <- findUnit declr
-  putStrLn "declr unit:"
-  print declrUnit
-  putStrLn "combined unit:"
-  combinedUnit <- findUnit [defaultUnit, declrUnit]
-  print combinedUnit
-  putStrLn "init:"
-  print init
-  case init of
-    Nothing -> return ()
-    Just init' -> analyzeCInit init'
-  putStrLn "expr:"
-  print expr
-      
-analyzeCFunDef :: CFunDef -> IO ()
+analyzeCFunDef :: CFunDef -> Analysis ()
 analyzeCFunDef f =
-    do _ <- applyFunDef SymTab.empty f
-       return ()
-
-analyzeCStat :: CStat -> IO ()
-analyzeCStat stat =
-    do putStrLn "Stat:"
-       print (pretty stat)
-       putStrLn "Type:"
-       typ <- findType SymTab.empty stat
-       print typ
-    
-analyzeCExpr :: CExpr -> IO ()
-analyzeCExpr expr =
-    do putStrLn "Expr:"
-       print (pretty expr)
-       putStrLn "Type:"
-       typ <- findType SymTab.empty expr
-       print typ
-
-analyzeCInitListItem :: ([CDesignator], CInit) -> IO ()
-analyzeCInitListItem (desigs, init) =
-    analyzeCInit init
-                            
-analyzeCInit :: CInit -> IO ()
-analyzeCInit init =
-    case init of
-      CInitExpr e _ -> analyzeCExpr e
-      CInitList inits _ -> forM_ inits analyzeCInitListItem
+    do st <- getSymTab
+       st' <- lift (applyFunDef st f)
+       setSymTab st'
