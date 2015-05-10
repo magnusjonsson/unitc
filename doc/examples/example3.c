@@ -4,15 +4,16 @@ extern double atof(const char *str);
 extern int printf(const char *format, ...);
 
 int main(int argc, char **argv) {
-  if (argv != 3) {
+  if (argc != 3) {
     printf("Usage: example3 <velocity> <time>\n");
+    return 1;
   }
 
-  double v unit(m/s) = atof(argv[1]);
-  double t unit(s) = atof(argv[2]);
+  double v unit(m/s) = (double unit(m/s)) atof(argv[1]);
+  double t unit(s) = (double unit(s)) atof(argv[2]);
   double a unit(m/s/s) = v / t;
 
-  printf("Velocity: %f\n", g);
+  printf("Velocity: %f\n", v);
   printf("Time: %f\n", t);
   printf("Acceleration: %f\n", a);
 

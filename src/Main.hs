@@ -1,8 +1,5 @@
 import App.FindType as FindType
-import App.FindUnit as FindUnit
 import App.SymTab as SymTab
-import App.Type as Type
-import App.Unit as Unit
 import Control.Monad
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class (lift)

@@ -8,6 +8,8 @@ import App.Type as Type
 import App.Unit
 import Control.Monad
 import Language.C.Pretty
+import Language.C.Data.Node
+import Language.C.Data.Position
 import Language.C.Data.Ident
 import Language.C.Syntax.AST
 
@@ -44,11 +46,19 @@ instance FindType CExpr where
                        case op of
                          CMulOp -> return (Type.mul t1 t2)
                          CDivOp -> return (Type.div t1 t2)
+                         CNeqOp -> do (if t1 /= t2 then
+                                         putStrLn ("comparison of incompatible types: "
+                                                   ++ show t1 ++ ", " ++ show t2)
+                                       else
+                                         return ())
+                                      return (Just (Numeric Nothing))
                          _ -> do putStrLn ("TODO findType CBinary " ++ show op)
                                  return Nothing
                    _ -> do putStrLn "Missing unit on one side of binary operator"
                            return Nothing
-          CCast decl e _ -> putStrLn "TODO findType CCast" >> return Nothing
+          CCast (CDecl specs [] _) e _ -> do td <- findType st specs
+                                             te <- findType st e
+                                             return td
           CUnary op e _ -> putStrLn "TODO findType CUnary" >> return Nothing
           CSizeofExpr e _ -> putStrLn "TODO findType CSizeofExpr" >> return Nothing
           CSizeofType decl _ -> putStrLn "TODO findType CSizeofType" >> return Nothing
@@ -56,14 +66,16 @@ instance FindType CExpr where
           CAlignofType decl _ -> putStrLn "TODO findType CAlignofType" >> return Nothing
           CComplexReal e _ -> putStrLn "TODO findType CComplexReal" >> return Nothing
           CComplexImag e _ -> putStrLn "TODO findType CComplexImag" >> return Nothing
-          CIndex e1 e2 _ -> putStrLn "TODO findType CIndex" >> return Nothing
+          CIndex e1 e2 _ -> do t1 <- findType st e1
+                               t2 <- findType st e1
+                               return t1
           CCall e1 es _ ->
               do t1 <- findType st e1
                  actuals <- mapM (findType st) es
                  case t1 of
                    Nothing -> return Nothing
                    Just (Fun rt formals acceptsVarArgs) ->
-                       do checkArgs actuals formals acceptsVarArgs
+                       do checkArgs (nodeInfo expr) actuals formals acceptsVarArgs
                           return (Just rt)
                    Just _ ->
                        do putStrLn ("Non-function called as a function: " ++ show (pretty e1))
@@ -79,29 +91,29 @@ instance FindType CExpr where
           CLabAddrExpr ident _ -> putStrLn "TODO findType CLabAddrExpr" >> return Nothing
           CBuiltinExpr builtin -> putStrLn "TODO findType CBuiltinExpr" >> return Nothing
 
-checkArgs :: [Maybe Type] -> [Type] -> Bool -> IO ()
-checkArgs actuals formals acceptVarArgs =
+checkArgs :: NodeInfo -> [Maybe Type] -> [Type] -> Bool -> IO ()
+checkArgs node actuals formals acceptVarArgs =
     case (actuals, formals, acceptVarArgs) of
       ([], [], _) -> return ()
       ([], _, _) -> putStrLn "Too few args"
       (_, [], True) -> return ()
       (_, [], False) -> putStrLn "Too many args"
       (Nothing : as, f : fs, _) ->
-          checkArgs as fs acceptVarArgs
+          checkArgs node as fs acceptVarArgs
       (Just a : as, f : fs, _) ->
           do if a /= f then
-                 putStrLn ("Argument type mismatch. Found " ++ show a ++ ", expected " ++ show f ++ ".")
+                 putStrLn (show (posOf node) ++ "Argument type mismatch. Found " ++ show a ++ ", expected " ++ show f ++ ".")
              else
                  return ()
-             checkArgs as fs acceptVarArgs
+             checkArgs node as fs acceptVarArgs
 
 instance FindType CConst where
     findType st c =
         case c of
           CIntConst _ _ -> return (Just (Numeric Nothing))
-          CCharConst _ _ -> return (Just Other)
+          CCharConst _ _ -> return (Just (Numeric Nothing))
           CFloatConst _ _ -> return (Just (Numeric Nothing))
-          CStrConst _ _ -> return (Just Other)
+          CStrConst _ _ -> return (Just (Numeric Nothing))
 
 instance FindType CStat where
     findType st stat =
@@ -113,8 +125,13 @@ instance FindType CStat where
           CExpr Nothing _ -> putStrLn "TODO findType CExpr" >> return Nothing
           CExpr (Just e) _ -> findType st e
           CCompound _ blockItems _ -> blockType st Nothing blockItems
-          CIf e1 s1 Nothing _ -> putStrLn "TODO findType CIf" >> return Nothing
-          CIf e1 s1 (Just s2) _ -> putStrLn "TODO findType CIf" >> return Nothing
+          CIf e s1 Nothing _ -> do te <- findType st e
+                                   t1 <- findType st s1
+                                   return Nothing
+          CIf e s1 (Just s2) _ -> do te <- findType st e
+                                     t1 <- findType st s1
+                                     t1 <- findType st s2
+                                     return Nothing
           CSwitch e b _ -> putStrLn "TODO findType CSwitch" >> return Nothing
           CWhile e b _ _ -> putStrLn "TODO findType CWhile" >> return Nothing
           CFor init cond incr b _ -> putStrLn "TODO findType CFor" >> return Nothing
@@ -232,7 +249,7 @@ applyTriplet st specType (declr, initr, bitFieldSize) =
                 case (ty, initType) of
                   (Just ty', Just initType') ->
                       if initType' /= ty' then
-                          putStrLn ("Can't assign from " ++ show initType' ++ " to " ++ show ty')
+                          putStrLn (show (posOf e) ++ ": Can't assign from " ++ show initType' ++ " to " ++ show ty')
                       else
                           return ()
                   _ -> return ()
@@ -278,7 +295,7 @@ argType st cdecl =
           do specType <- findType st specs
              attrType <- findType st attrs
              deriveType st derivedDeclrs (Type.mergeMaybe specType attrType)
-      _ -> do putStrLn "Strange argument!"
+      _ -> do putStrLn ("Strange argument:"  ++ show (pretty cdecl))
               return Nothing
 
 funDefArgNames :: CFunDef -> IO (Maybe [String])
