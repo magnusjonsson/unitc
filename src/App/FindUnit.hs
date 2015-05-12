@@ -3,15 +3,17 @@
 module App.FindUnit where
 
 import App.Unit as Unit
+import App.Monad.Analysis
 import Control.Monad
 import Control.Monad.Extra
 import Language.C.Pretty
 import Language.C.Data.Ident
+import Language.C.Data.Position
 import Language.C.Syntax.Constants
 import Language.C.Syntax.AST
 
 class FindUnit a where
-    findUnit :: a -> IO (Maybe Unit)
+    findUnit :: a -> Analysis (Maybe Unit)
 
 instance FindUnit Unit where
     findUnit u = return (Just u)
@@ -27,7 +29,7 @@ instance FindUnit CAttr where
           CAttr (Ident "unit" _ _) [e] _ -> parseCExprAsUnit e
           _ -> return Nothing
 
-parseCExprAsQ :: CExpr -> IO (Maybe Q)
+parseCExprAsQ :: CExpr -> Analysis (Maybe Q)
 parseCExprAsQ expr =
     case expr of
       CConst (CIntConst (CInteger i _ _) _) -> return (Just (toRational i))
@@ -50,10 +52,10 @@ parseCExprAsQ expr =
           do u1 <- parseCExprAsQ e1
              u2 <- parseCExprAsQ e2
              return (liftM2 (/) u1 u2)
-      _ -> do print ("Can't parse expression as power: " ++ show (pretty expr))
+      _ -> do err expr ("Can't parse expression as power: " ++ show (pretty expr))
               return Nothing
 
-parseCExprAsUnit :: CExpr -> IO (Maybe Unit)
+parseCExprAsUnit :: CExpr -> Analysis (Maybe Unit)
 parseCExprAsUnit expr =
     case expr of
       CBinary CMulOp e1 e2 _ ->
@@ -66,7 +68,7 @@ parseCExprAsUnit expr =
              return (liftM2 Unit.div u1 u2)
       CVar (Ident name _ _) _ -> return (Just (Unit.fundamental name))
       CConst (CIntConst (CInteger 1 _ _) _) -> return (Just Unit.one)
-      _ -> do print ("Can't parse expression as unit: " ++ show (pretty expr))
+      _ -> do err expr ("Can't parse expression as unit: " ++ show (pretty expr))
               return Nothing
 
 instance FindUnit CDeclSpec where
@@ -91,13 +93,13 @@ instance FindUnit CTypeSpec where
           CBoolType _ -> return Nothing
           CComplexType _ -> return Nothing
           CTypeDef ident _ ->
-              do putStrLn "typedef type specifiers not yet handled"
+              do err typeSpec "typedef type specifiers not yet handled"
                  return Nothing
           CTypeOfExpr e _ ->
-              do putStrLn "typeof(expr) type specifiers not yet handled"
+              do err typeSpec "typeof(expr) type specifiers not yet handled"
                  return Nothing
           CTypeOfType t _ ->
-              do putStrLn "typeof(type) type specifiers not yet handled"
+              do err typeSpec "typeof(type) type specifiers not yet handled"
                  return Nothing
 
 instance FindUnit CTypeQual where
@@ -121,5 +123,5 @@ instance FindUnit a => FindUnit [a] where
            case units of
              [] -> return Nothing
              [u] -> return (Just u)
-             us -> do putStrLn ("Conflicting units: " ++ show us)
+             us -> do err nopos ("Conflicting units: " ++ show us)
                       return Nothing
