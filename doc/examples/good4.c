@@ -1,5 +1,7 @@
 #define unit(u) __attribute__((unit(u)))
 
+typedef double time unit(s), velocity unit(m/s), acceleration unit(m/s/s);
+
 extern double atof(const char *str);
 extern int printf(const char *format, ...);
 
@@ -9,9 +11,9 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  double v unit(m/s) = (double unit(m/s)) atof(argv[1]);
-  double t unit(s) = (double unit(s)) atof(argv[2]);
-  double a unit(m/s/s) = v / t;
+  velocity v = (velocity) atof(argv[1]);
+  time t = (time) atof(argv[2]);
+  acceleration a = v / t;
 
   printf("Velocity: %f m/s\n", v);
   printf("Time: %f s\n", t);
