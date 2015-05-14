@@ -175,9 +175,11 @@ instance FindType CTypeSpec where
           CUnsigType _ -> return (Just (Numeric Nothing))
           CBoolType _ -> return (Just Other)
           CComplexType _ -> return (Just (Numeric Nothing))
-          CTypeDef ident _ ->
-              do err typeSpec "CTypeSpec: typedef type specifiers not yet handled"
-                 return Nothing
+          CTypeDef (Ident name _ _) _ ->
+            case SymTab.lookupType name st of
+             Just ty -> return (Just ty)
+             Nothing -> do err typeSpec ("Could not find typedef: " ++ name)
+                           return Nothing
           CTypeOfExpr e _ ->
               do err typeSpec "CTypeSpec: typeof(expr) type specifiers not yet handled"
                  return Nothing
@@ -226,25 +228,32 @@ applyDecl :: SymTab -> CDecl -> Analysis SymTab
 applyDecl st decl =
     case decl of
       CDecl declSpecs triplets _ ->
-          do ty <- findType st declSpecs
-             applyTriplets decl st ty triplets
+        applyTriplets decl st declSpecs triplets
 
 type Triplet = (Maybe CDeclr, Maybe CInit, Maybe CExpr)
                            
-applyTriplets :: Pos a => a -> SymTab -> Maybe Type -> [Triplet] -> Analysis SymTab
-applyTriplets node st specType triplets =
+applyTriplets :: Pos a => a -> SymTab -> [CDeclSpec] -> [Triplet] -> Analysis SymTab
+applyTriplets node st declSpecs triplets =
     case triplets of
       [] -> return st
-      (triplet : r) -> do st' <- applyTriplet node st specType triplet
-                          applyTriplets node st' specType r
+      (triplet : r) -> do st' <- applyTriplet node st declSpecs triplet
+                          applyTriplets node st' declSpecs r
 
-applyTriplet :: Pos a => a -> SymTab -> Maybe Type -> Triplet -> Analysis SymTab
-applyTriplet node st specType (declr, initr, bitFieldSize) =
+isTypeDef :: [CDeclSpec] -> Bool
+isTypeDef =
+  any (\ spec ->
+        case spec of
+         (CStorageSpec (CTypedef _)) -> True
+         _ -> False)
+
+applyTriplet :: Pos a => a -> SymTab -> [CDeclSpec] -> Triplet -> Analysis SymTab
+applyTriplet node st declSpecs (declr, initr, bitFieldSize) =
     do ty <- case declr of
                Just (CDeclr _ derivedDeclrs _ attrs _) ->
-                   do attrType <- findType st attrs
+                   do specType <- findType st declSpecs
+                      attrType <- findType st attrs
                       deriveType st derivedDeclrs (Type.mergeMaybe specType attrType)
-               Nothing -> return specType
+               Nothing -> findType st declSpecs
        case initr of
          Just (CInitExpr e _) ->
              do initType <- findType st e
@@ -262,7 +271,11 @@ applyTriplet node st specType (declr, initr, bitFieldSize) =
            case declr' of
              CDeclr (Just (Ident name _ _)) _ _ _ _ ->
                case ty of
-                Just ty' -> return (SymTab.bindVariable name ty' st)
+                Just ty' ->
+                  if isTypeDef declSpecs then
+                    return (SymTab.bindType name ty' st)
+                  else
+                    return (SymTab.bindVariable name ty' st)
                 Nothing -> do err declr' ("Could not infer type for " ++ name)
                               return st
          _ -> do err node ("Unhandled CDeclr: " ++ show declr)
