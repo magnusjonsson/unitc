@@ -18,13 +18,13 @@ fundamental :: String -> Unit
 fundamental name = Map.singleton name 1
 
 mul ::  Unit -> Unit -> Unit
-mul = Map.mergeWithKey (\k p1 p2 -> nonzero (p1 + p2)) id id
+mul = Map.mergeWithKey (\_k p1 p2 -> nonzero (p1 + p2)) id id
 
 recip :: Unit -> Unit
 recip = Map.map negate
             
 div ::  Unit -> Unit -> Unit
-div = Map.mergeWithKey (\k p1 p2 -> nonzero (p1 - p2)) id recip
+div = Map.mergeWithKey (\_k p1 p2 -> nonzero (p1 - p2)) id recip
 
 pow :: Unit -> Q -> Unit
 pow u q = Map.map (q *) u

@@ -92,13 +92,15 @@ instance FindUnit CTypeSpec where
           CUnsigType _ -> return Nothing
           CBoolType _ -> return Nothing
           CComplexType _ -> return Nothing
-          CTypeDef ident _ ->
+          CSUType _ _ -> return Nothing
+          CEnumType _ _ -> return Nothing
+          CTypeDef _ident _ ->
               do err typeSpec "typedef type specifiers not yet handled"
                  return Nothing
-          CTypeOfExpr e _ ->
+          CTypeOfExpr _e _ ->
               do err typeSpec "typeof(expr) type specifiers not yet handled"
                  return Nothing
-          CTypeOfType t _ ->
+          CTypeOfType _t _ ->
               do err typeSpec "typeof(type) type specifiers not yet handled"
                  return Nothing
 

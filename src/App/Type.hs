@@ -39,7 +39,7 @@ merge t1 t2 =
             (Nothing, Nothing) -> Just (Numeric Nothing)
       (Fun r1 a1 d1, Fun r2 a2 d2) ->
           -- maybe monad
-          do r <- merge t1 t2
+          do r <- merge r1 r2
              a <- mapM (uncurry merge) (zip a1 a2)
              guard (d1 == d2)
              return (Fun r a d1)

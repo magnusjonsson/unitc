@@ -1,12 +1,7 @@
 import App.FindType as FindType
-import App.SymTab as SymTab
 import App.Monad.Analysis
 import Control.Monad
 import Language.C as C
-import Language.C.Analysis.DefTable
-import Language.C.Analysis.TravMonad
-import Language.C.Data.Ident
-import Language.C.Syntax.AST
 import Language.C.System.GCC as GCC
 import System.IO
 import System.Environment (getArgs)

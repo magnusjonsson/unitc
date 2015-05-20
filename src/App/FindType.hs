@@ -4,9 +4,8 @@ module App.FindType where
 
 import App.FindUnit
 import App.Monad.Analysis
-import App.SymTab as SymTab
-import App.Type as Type
-import App.Unit
+import qualified App.SymTab as SymTab
+import qualified App.Type as Type
 
 import Control.Monad
 import Language.C.Pretty
@@ -61,6 +60,7 @@ instance FindType CExpr where
           CCast (CDecl specs [] _) e _ -> do td <- findType st specs
                                              te <- findType st e
                                              return td
+          CCast (CDecl specs _ _) e _ -> err expr "TODO findType CCast with triplets" >> return Nothing
           CUnary op e _ -> err expr "TODO findType CUnary" >> return Nothing
           CSizeofExpr e _ -> err expr "TODO findType CSizeofExpr" >> return Nothing
           CSizeofType decl _ -> err expr "TODO findType CSizeofType" >> return Nothing
@@ -153,6 +153,7 @@ instance FindType CStat where
                        else
                            return ()
                  return Nothing
+          CAsm _ _ -> err stat "TODO findType CAsm" >> return Nothing
 
 instance FindType CDeclSpec where
     findType st declSpec =
@@ -175,6 +176,10 @@ instance FindType CTypeSpec where
           CUnsigType _ -> return (Just (Numeric Nothing))
           CBoolType _ -> return (Just Other)
           CComplexType _ -> return (Just (Numeric Nothing))
+          CSUType _ _ -> do err typeSpec "TODO findType CSUType"
+                            return Nothing
+          CEnumType _ _ -> do err typeSpec "TODO findType CEnumType"
+                              return Nothing
           CTypeDef (Ident name _ _) _ ->
             case SymTab.lookupType name st of
              Just ty -> return (Just ty)
@@ -186,6 +191,8 @@ instance FindType CTypeSpec where
           CTypeOfType t _ ->
               do err typeSpec "CTypeSpec: typeof(type) type specifiers not yet handled"
                  return Nothing
+--          _ -> do err typeSpec ("Missing case: " ++ show typeSpec)
+--                  return Nothing
 
 instance FindType CTypeQual where
     findType st typeQual =
@@ -278,6 +285,8 @@ applyTriplet node st declSpecs (declr, initr, bitFieldSize) =
                     return (SymTab.bindVariable name ty' st)
                 Nothing -> do err declr' ("Could not infer type for " ++ name)
                               return st
+             _ -> do err node ("Unhandled CDeclr: " ++ show declr)
+                     return st
          _ -> do err node ("Unhandled CDeclr: " ++ show declr)
                  return st
 
