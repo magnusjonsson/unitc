@@ -31,18 +31,6 @@ analyzeCTranslUnit (CTranslUnit decls _) =
 analyzeCExtDecl :: CExtDecl -> Analysis ()
 analyzeCExtDecl extDecl =
     case extDecl of
-      CDeclExt d -> analyzeCDecl d
-      CFDefExt f -> analyzeCFunDef f
+      CDeclExt d -> applyCDecl d
+      CFDefExt f -> applyCFunDef f
       CAsmExt _ _ -> return ()
-                     
-analyzeCDecl :: CDecl -> Analysis ()
-analyzeCDecl d = do
-  st <- getSymTab
-  st' <- applyDecl st d
-  setSymTab st'
-
-analyzeCFunDef :: CFunDef -> Analysis ()
-analyzeCFunDef f =
-    do st <- getSymTab
-       st' <- applyFunDef st f
-       setSymTab st'

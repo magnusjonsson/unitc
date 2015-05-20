@@ -16,6 +16,9 @@ getSymTab = get
 setSymTab :: SymTab -> Analysis ()
 setSymTab = put
 
+modifySymTab :: (SymTab -> SymTab) -> Analysis ()
+modifySymTab = modify'
+
 err :: Pos a => a -> String -> Analysis ()
 err node msg = do lift (tell [Err (posOf node) msg])
 

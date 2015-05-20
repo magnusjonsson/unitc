@@ -18,15 +18,15 @@ import App.Type
 import App.SymTab
 
 class FindType a where
-    findType :: SymTab -> a -> Analysis (Maybe Type)
+    findType :: a -> Analysis (Maybe Type)
 
 instance FindType CExpr where
-    findType st expr =
+    findType expr =
         case expr of
-          CComma es _ -> liftM last (mapM (findType st) es)
+          CComma es _ -> liftM last (mapM findType es)
           CAssign op e1 e2 _ ->
-              do mt1 <- findType st e1
-                 mt2 <- findType st e2
+              do mt1 <- findType e1
+                 mt2 <- findType e2
                  case (mt1, mt2) of
                    (Just t1, Just t2) ->
                        case op of
@@ -39,8 +39,8 @@ instance FindType CExpr where
           CCond e1 (Just e2) e3 _ -> err expr "TODO findType CCond" >> return Nothing
           CCond e1 Nothing e3 _ -> err expr "TODO findType CCond" >> return Nothing
           CBinary op e1 e2 _ ->
-              do mt1 <- findType st e1
-                 mt2 <- findType st e2
+              do mt1 <- findType e1
+                 mt2 <- findType e2
                  case (mt1, mt2) of
                    (Nothing, Nothing) -> return Nothing
                    (Just t1, Just t2) ->
@@ -57,8 +57,8 @@ instance FindType CExpr where
                                  return Nothing
                    _ -> do err expr "Missing unit on one side of binary operator"
                            return Nothing
-          CCast (CDecl specs [] _) e _ -> do td <- findType st specs
-                                             te <- findType st e
+          CCast (CDecl specs [] _) e _ -> do td <- findType specs
+                                             te <- findType e
                                              return td
           CCast (CDecl specs _ _) e _ -> err expr "TODO findType CCast with triplets" >> return Nothing
           CUnary op e _ -> err expr "TODO findType CUnary" >> return Nothing
@@ -68,12 +68,12 @@ instance FindType CExpr where
           CAlignofType decl _ -> err expr "TODO findType CAlignofType" >> return Nothing
           CComplexReal e _ -> err expr "TODO findType CComplexReal" >> return Nothing
           CComplexImag e _ -> err expr "TODO findType CComplexImag" >> return Nothing
-          CIndex e1 e2 _ -> do t1 <- findType st e1
-                               t2 <- findType st e1
+          CIndex e1 e2 _ -> do t1 <- findType e1
+                               t2 <- findType e1
                                return t1
           CCall e1 es _ ->
-              do t1 <- findType st e1
-                 actuals <- mapM (findType st) es
+              do t1 <- findType e1
+                 actuals <- mapM findType es
                  case t1 of
                    Nothing -> return Nothing
                    Just (Fun rt formals acceptsVarArgs) ->
@@ -83,11 +83,12 @@ instance FindType CExpr where
                        do err expr ("Non-function called as a function: " ++ show (pretty e1))
                           return Nothing
           CMember e ident bool _ -> err expr "TODO findType CMember" >> return Nothing
-          CVar (Ident name _ _) _ -> case SymTab.lookupVariable name st of
-                                       Nothing -> do err expr ("Variable not in scope: " ++ name)
-                                                     return Nothing
-                                       Just ty -> return (Just ty)
-          CConst c -> findType st c
+          CVar (Ident name _ _) _ -> do st <- getSymTab
+                                        case SymTab.lookupVariable name st of
+                                          Nothing -> do err expr ("Variable not in scope: " ++ name)
+                                                        return Nothing
+                                          Just ty -> return (Just ty)
+          CConst c -> findType c
           CCompoundLit decl initList _ -> err expr "TODO findType CCompoundLit" >> return Nothing
           CStatExpr stat _ -> err expr "TODO findType CStatExpr" >> return Nothing
           CLabAddrExpr ident _ -> err expr "TODO findType CLabAddrExpr" >> return Nothing
@@ -110,7 +111,7 @@ checkArgs node actuals formals acceptVarArgs =
              checkArgs node as fs acceptVarArgs
 
 instance FindType CConst where
-    findType st c =
+    findType c =
         case c of
           CIntConst _ _ -> return (Just (Numeric Nothing))
           CCharConst _ _ -> return (Just (Numeric Nothing))
@@ -118,21 +119,21 @@ instance FindType CConst where
           CStrConst _ _ -> return (Just (Numeric Nothing))
 
 instance FindType CStat where
-    findType st stat =
+    findType stat =
         case stat of
           CLabel _ _ _ _ -> err stat "TODO findType CLabel" >> return Nothing
           CCase e b _ -> err stat "TODO findType CCase" >> return Nothing
           CCases e1 e2 b _ -> err stat "TODO findType CCases" >> return Nothing
           CDefault b _ -> err stat "TODO findType CDefault" >> return Nothing
           CExpr Nothing _ -> err stat "TODO findType CExpr" >> return Nothing
-          CExpr (Just e) _ -> findType st e
-          CCompound _ blockItems _ -> blockType st Nothing blockItems
-          CIf e s1 Nothing _ -> do te <- findType st e
-                                   t1 <- findType st s1
+          CExpr (Just e) _ -> findType e
+          CCompound _ blockItems _ -> blockType blockItems
+          CIf e s1 Nothing _ -> do te <- findType e
+                                   t1 <- findType s1
                                    return Nothing
-          CIf e s1 (Just s2) _ -> do te <- findType st e
-                                     t1 <- findType st s1
-                                     t1 <- findType st s2
+          CIf e s1 (Just s2) _ -> do te <- findType e
+                                     t1 <- findType s1
+                                     t1 <- findType s2
                                      return Nothing
           CSwitch e b _ -> err stat "TODO findType CSwitch" >> return Nothing
           CWhile e b _ _ -> err stat "TODO findType CWhile" >> return Nothing
@@ -144,7 +145,8 @@ instance FindType CStat where
           CReturn e _ ->
               do ty <- case e of
                          Nothing -> return (Just Other)
-                         Just e' -> findType st e'
+                         Just e' -> findType e'
+                 st <- getSymTab
                  case returnType st of
                    Nothing -> err stat "Encountered return statement but not sure what return type is expected!"
                    Just r ->
@@ -156,14 +158,14 @@ instance FindType CStat where
           CAsm _ _ -> err stat "TODO findType CAsm" >> return Nothing
 
 instance FindType CDeclSpec where
-    findType st declSpec =
+    findType declSpec =
         case declSpec of
           CStorageSpec _ -> return Nothing
-          CTypeSpec typeSpec -> findType st typeSpec
-          CTypeQual typeQual -> findType st typeQual
+          CTypeSpec typeSpec -> findType typeSpec
+          CTypeQual typeQual -> findType typeQual
 
 instance FindType CTypeSpec where
-    findType st typeSpec =
+    findType typeSpec =
         case typeSpec of
           CVoidType _ -> return (Just Other)
           CCharType _ -> return (Just (Numeric Nothing))
@@ -181,10 +183,11 @@ instance FindType CTypeSpec where
           CEnumType _ _ -> do err typeSpec "TODO findType CEnumType"
                               return Nothing
           CTypeDef (Ident name _ _) _ ->
-            case SymTab.lookupType name st of
-             Just ty -> return (Just ty)
-             Nothing -> do err typeSpec ("Could not find typedef: " ++ name)
-                           return Nothing
+              do st <- getSymTab
+                 case SymTab.lookupType name st of
+                   Just ty -> return (Just ty)
+                   Nothing -> do err typeSpec ("Could not find typedef: " ++ name)
+                                 return Nothing
           CTypeOfExpr e _ ->
               do err typeSpec "CTypeSpec: typeof(expr) type specifiers not yet handled"
                  return Nothing
@@ -195,57 +198,52 @@ instance FindType CTypeSpec where
 --                  return Nothing
 
 instance FindType CTypeQual where
-    findType st typeQual =
+    findType typeQual =
         case typeQual of
           CConstQual _ -> return Nothing
           CVolatQual _ -> return Nothing
           CRestrQual _ -> return Nothing
           CInlineQual _ -> return Nothing
-          CAttrQual attr -> findType st attr
+          CAttrQual attr -> findType attr
 
 instance FindType CAttr where
-    findType st attr =
+    findType attr =
         do unit <- findUnit attr
            case unit of
              Nothing -> return Nothing
              Just u -> return (Just (Numeric (Just u)))
 
 instance FindType a => FindType [a] where
-    findType st list =
-        do ts <- mapM (findType st) list
+    findType list =
+        do ts <- mapM findType list
            return (foldl Type.mergeMaybe Nothing ts)
 
-blockType :: SymTab -> Maybe Type -> [CBlockItem] -> Analysis (Maybe Type)
-blockType st lastType [] = return lastType
-blockType st lastType (s : r) =
-    do (t, st') <- blockItemTypeAndModifiedSymTab st s
-       blockType st' t r
+blockType :: [CBlockItem] -> Analysis (Maybe Type)
+blockType items =
+    do st <- getSymTab
+       types <- mapM applyBlockItem items
+       setSymTab st
+       case types of
+         [] -> return Nothing
+         _ -> return (last types)
 
-blockItemTypeAndModifiedSymTab :: SymTab -> CBlockItem -> Analysis (Maybe Type, SymTab)
-blockItemTypeAndModifiedSymTab st item =
+applyBlockItem :: CBlockItem -> Analysis (Maybe Type)
+applyBlockItem item =
     case item of
-      CBlockStmt stmt -> do t <- findType st stmt
-                            return (t, st)
-      CBlockDecl decl -> do st' <- applyDecl st decl
-                            return (Nothing, st')
+      CBlockStmt stmt -> findType stmt
+      CBlockDecl decl -> do applyCDecl decl
+                            return Nothing
       CNestedFunDef f -> do err f "TODO findType CNestedFunDef"
-                            return (Nothing, st)
+                            return Nothing
 
-applyDecl :: SymTab -> CDecl -> Analysis SymTab
-applyDecl st decl =
+applyCDecl :: CDecl -> Analysis ()
+applyCDecl decl =
     case decl of
       CDecl declSpecs triplets _ ->
-        applyTriplets decl st declSpecs triplets
+          mapM_ (applyTriplet decl declSpecs) triplets
 
 type Triplet = (Maybe CDeclr, Maybe CInit, Maybe CExpr)
                            
-applyTriplets :: Pos a => a -> SymTab -> [CDeclSpec] -> [Triplet] -> Analysis SymTab
-applyTriplets node st declSpecs triplets =
-    case triplets of
-      [] -> return st
-      (triplet : r) -> do st' <- applyTriplet node st declSpecs triplet
-                          applyTriplets node st' declSpecs r
-
 isTypeDef :: [CDeclSpec] -> Bool
 isTypeDef =
   any (\ spec ->
@@ -253,17 +251,17 @@ isTypeDef =
          (CStorageSpec (CTypedef _)) -> True
          _ -> False)
 
-applyTriplet :: Pos a => a -> SymTab -> [CDeclSpec] -> Triplet -> Analysis SymTab
-applyTriplet node st declSpecs (declr, initr, bitFieldSize) =
+applyTriplet :: Pos a => a -> [CDeclSpec] -> Triplet -> Analysis ()
+applyTriplet node declSpecs (declr, initr, bitFieldSize) =
     do ty <- case declr of
                Just (CDeclr _ derivedDeclrs _ attrs _) ->
-                   do specType <- findType st declSpecs
-                      attrType <- findType st attrs
-                      deriveType st derivedDeclrs (Type.mergeMaybe specType attrType)
-               Nothing -> findType st declSpecs
+                   do specType <- findType declSpecs
+                      attrType <- findType attrs
+                      deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
+               Nothing -> findType declSpecs
        case initr of
          Just (CInitExpr e _) ->
-             do initType <- findType st e
+             do initType <- findType e
                 case (ty, initType) of
                   (Just ty', Just initType') ->
                       if initType' /= ty' then
@@ -280,25 +278,22 @@ applyTriplet node st declSpecs (declr, initr, bitFieldSize) =
                case ty of
                 Just ty' ->
                   if isTypeDef declSpecs then
-                    return (SymTab.bindType name ty' st)
+                      modifySymTab (SymTab.bindType name ty')
                   else
-                    return (SymTab.bindVariable name ty' st)
-                Nothing -> do err declr' ("Could not infer type for " ++ name)
-                              return st
-             _ -> do err node ("Unhandled CDeclr: " ++ show declr)
-                     return st
-         _ -> do err node ("Unhandled CDeclr: " ++ show declr)
-                 return st
+                      modifySymTab (SymTab.bindVariable name ty')
+                Nothing -> err declr' ("Could not infer type for " ++ name)
+             _ -> err node ("Unhandled CDeclr: " ++ show declr)
+         _ -> err node ("Unhandled CDeclr: " ++ show declr)
 
-deriveType :: SymTab -> [CDerivedDeclr] -> Maybe Type -> Analysis (Maybe Type)
-deriveType st ds ty =
+deriveType :: [CDerivedDeclr] -> Maybe Type -> Analysis (Maybe Type)
+deriveType ds ty =
     case ds of
       [] -> return ty
-      (d : dr) -> do ty' <- deriveType st dr ty
-                     deriveType1 st d ty'
+      (d : dr) -> do ty' <- deriveType dr ty
+                     deriveType1 d ty'
 
-deriveType1 :: SymTab -> CDerivedDeclr -> Maybe Type -> Analysis (Maybe Type)
-deriveType1 st d maybeTy =
+deriveType1 :: CDerivedDeclr -> Maybe Type -> Analysis (Maybe Type)
+deriveType1 d maybeTy =
     case maybeTy of
       Nothing -> return Nothing
       Just ty ->
@@ -309,19 +304,19 @@ deriveType1 st d maybeTy =
                 do err d "TODO deriveType1 CFunDeclr with old-style args"
                    return Nothing
             CFunDeclr (Right (cdecls, dots)) attrs _ ->
-                do maybeArgs <- mapM (argType st) cdecls
+                do maybeArgs <- mapM argType cdecls
                    case sequence maybeArgs of -- maybe monad
                      Nothing -> return Nothing
                      Just args -> return (Just (Fun ty args dots))
 
-argType :: SymTab -> CDecl -> Analysis (Maybe Type)
-argType st cdecl =
+argType :: CDecl -> Analysis (Maybe Type)
+argType cdecl =
     case cdecl of
-      CDecl specs [] _ -> findType st specs
+      CDecl specs [] _ -> findType specs
       CDecl specs [(Just (CDeclr _ derivedDeclrs _ attrs _), Nothing, Nothing)] _ ->
-          do specType <- findType st specs
-             attrType <- findType st attrs
-             deriveType st derivedDeclrs (Type.mergeMaybe specType attrType)
+          do specType <- findType specs
+             attrType <- findType attrs
+             deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
       _ -> do err cdecl ("Strange argument:"  ++ show (pretty cdecl))
               return Nothing
 
@@ -343,41 +338,42 @@ funDefArgNames f =
                   _ -> do err f "TODO Fundef without function declarator?"
                           return Nothing
 
-argName :: CDecl ->Analysis (Maybe String)
+argName :: CDecl -> Analysis (Maybe String)
 argName cdecl =
     case cdecl of
       CDecl _ [(Just (CDeclr (Just (Ident name _ _)) _ _ _ _), _, _)] _ -> return (Just name)
       _ -> do err cdecl "Can't find name of argument"
               return Nothing
 
-applyFunDef :: SymTab -> CFunDef -> Analysis SymTab
-applyFunDef st f =
+applyCFunDef :: CFunDef -> Analysis ()
+applyCFunDef f =
     case f of
       CFunDef specs (CDeclr ident derivedDeclrs _ attrs _) argDecls body _ ->
-          do specType <- findType st specs
-             attrType <- findType st attrs
-             ty <- deriveType st derivedDeclrs (Type.mergeMaybe specType attrType)
-             st' <-
-                 case (ident, ty) of
-                   (Just (Ident name _ _), Just ty') ->
-                       return (SymTab.bindVariable name ty' st)
-                   (Nothing, _) -> do err f "Strange fundef! Function has no name!"
-                                      return st
-                   (_, Nothing) -> do err f "Could not determine function type"
-                                      return st
-             st'' <-
-                 case ty of
-                   Just (Fun rt types _) ->
-                       do argNames <- funDefArgNames f
-                          case argNames of
-                            Nothing -> return st'
-                            Just names ->
-                                if length names /= length types then
-                                    do err f "Number of types and names of args different??"
-                                       return st'
-                                else
-                                    return (SymTab.setReturnType (Just rt) $
-                                            SymTab.bindVariables (zip names types) $ st')
-                   _ -> return st'
-             _ <- findType st'' body
-             return st'
+          do specType <- findType specs
+             attrType <- findType attrs
+             ty <- deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
+             case (ident, ty) of
+               (Just (Ident name _ _), Just ty') ->
+                   do modifySymTab (SymTab.bindVariable name ty')
+               (Nothing, _) -> err f "Strange fundef! Function has no name!"
+               (_, Nothing) -> err f "Could not determine function type"
+
+             -- save symtab before processing args and body
+             outsideScope <- getSymTab
+
+             case ty of
+               Just (Fun rt types _) ->
+                   do argNames <- funDefArgNames f
+                      modifySymTab (SymTab.setReturnType (Just rt))
+                      case argNames of
+                        Nothing -> return ()
+                        Just names ->
+                            if length names /= length types then
+                                err f "Number of types and names of args different??"
+                            else
+                                modifySymTab (SymTab.bindVariables (zip names types))
+               _ -> return ()
+
+             _ <- findType body
+
+             setSymTab outsideScope
