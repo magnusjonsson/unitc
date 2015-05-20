@@ -317,6 +317,7 @@ deriveType1 st d maybeTy =
 argType :: SymTab -> CDecl -> Analysis (Maybe Type)
 argType st cdecl =
     case cdecl of
+      CDecl specs [] _ -> findType st specs
       CDecl specs [(Just (CDeclr _ derivedDeclrs _ attrs _), Nothing, Nothing)] _ ->
           do specType <- findType st specs
              attrType <- findType st attrs
