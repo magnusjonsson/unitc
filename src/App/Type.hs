@@ -5,6 +5,7 @@ import Control.Monad
 
 data Type = Numeric (Maybe Unit)
           | Fun Type [Type] Bool -- returnType argTypes acceptsVarArgs
+          | Struct String
           | Other
     deriving (Show, Eq)
 
@@ -43,6 +44,7 @@ merge t1 t2 =
              a <- mapM (uncurry merge) (zip a1 a2)
              guard (d1 == d2)
              return (Fun r a d1)
+      (Struct n1, Struct n2) -> if n1 == n2 then Just t1 else Nothing
       (Other, Other) -> Just Other
       _ -> Nothing
 

@@ -82,7 +82,21 @@ instance FindType CExpr where
                    Just _ ->
                        do err expr ("Non-function called as a function: " ++ show (pretty e1))
                           return Nothing
-          CMember e ident bool _ -> err expr "TODO findType CMember" >> return Nothing
+          CMember e (Ident field _ _) _ _ -> do ty <- findType e
+                                                st <- getSymTab
+                                                case ty of
+                                                  Nothing -> return Nothing
+                                                  Just (Struct tag) ->
+                                                      case SymTab.lookupTag tag st of
+                                                        Nothing -> do err expr ("Could not find struct tag " ++ tag ++ " in symbol table")
+                                                                      return Nothing
+                                                        Just fields ->
+                                                            case lookupField field fields of
+                                                              Nothing -> do err expr ("No such field " ++ field ++ " in tag " ++ tag)
+                                                                            return Nothing
+                                                              Just ty -> return (Just ty)
+                                                  _ -> do err expr "Can't get field of non-struct"
+                                                          return Nothing
           CVar (Ident name _ _) _ -> do st <- getSymTab
                                         case SymTab.lookupVariable name st of
                                           Nothing -> do err expr ("Variable not in scope: " ++ name)
@@ -178,8 +192,7 @@ instance FindType CTypeSpec where
           CUnsigType _ -> return (Just (Numeric Nothing))
           CBoolType _ -> return (Just Other)
           CComplexType _ -> return (Just (Numeric Nothing))
-          CSUType _ _ -> do err typeSpec "TODO findType CSUType"
-                            return Nothing
+          CSUType csu _ -> findType csu
           CEnumType _ _ -> do err typeSpec "TODO findType CEnumType"
                               return Nothing
           CTypeDef (Ident name _ _) _ ->
@@ -196,6 +209,24 @@ instance FindType CTypeSpec where
                  return Nothing
 --          _ -> do err typeSpec ("Missing case: " ++ show typeSpec)
 --                  return Nothing
+
+instance FindType CStructUnion where
+    findType csu =
+        do name <-
+               case csu of
+                 CStruct _ (Just (Ident name _ _)) _ _ _ ->
+                     return name
+                 CStruct _ Nothing _ _ _ ->
+                     gensym
+           case csu of
+             CStruct _ _ Nothing _ _ -> return ()
+             CStruct _ _ (Just fields) _ _ ->
+                 do parent <- getSymTab
+                    setSymTab (SymTab.newScope parent)
+                    mapM_ applyCDecl fields
+                    fieldSymTab <- getSymTab
+                    setSymTab (bindTag name (SymTab.variables fieldSymTab) parent)
+           return (Just (Struct name))
 
 instance FindType CTypeQual where
     findType typeQual =
@@ -240,7 +271,8 @@ applyCDecl :: CDecl -> Analysis ()
 applyCDecl decl =
     case decl of
       CDecl declSpecs triplets _ ->
-          mapM_ (applyTriplet decl declSpecs) triplets
+          do ty <- findType declSpecs
+             mapM_ (applyTriplet decl ty (isTypeDef declSpecs)) triplets
 
 type Triplet = (Maybe CDeclr, Maybe CInit, Maybe CExpr)
                            
@@ -251,14 +283,13 @@ isTypeDef =
          (CStorageSpec (CTypedef _)) -> True
          _ -> False)
 
-applyTriplet :: Pos a => a -> [CDeclSpec] -> Triplet -> Analysis ()
-applyTriplet node declSpecs (declr, initr, bitFieldSize) =
+applyTriplet :: Pos a => a -> Maybe Type -> Bool -> Triplet -> Analysis ()
+applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =
     do ty <- case declr of
                Just (CDeclr _ derivedDeclrs _ attrs _) ->
-                   do specType <- findType declSpecs
-                      attrType <- findType attrs
-                      deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
-               Nothing -> findType declSpecs
+                   do attrType <- findType attrs
+                      deriveType derivedDeclrs (Type.mergeMaybe declSpecTy attrType)
+               Nothing -> return declSpecTy
        case initr of
          Just (CInitExpr e _) ->
              do initType <- findType e
@@ -277,7 +308,7 @@ applyTriplet node declSpecs (declr, initr, bitFieldSize) =
              CDeclr (Just (Ident name _ _)) _ _ _ _ ->
                case ty of
                 Just ty' ->
-                  if isTypeDef declSpecs then
+                  if isTypeDef then
                       modifySymTab (SymTab.bindType name ty')
                   else
                       modifySymTab (SymTab.bindVariable name ty')
