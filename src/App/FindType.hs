@@ -6,6 +6,7 @@ import App.FindUnit
 import App.Monad.Analysis
 import qualified App.SymTab as SymTab
 import qualified App.Type as Type
+import qualified App.Unit as Unit
 
 import Control.Monad
 import Language.C.Pretty
@@ -47,19 +48,17 @@ instance FindType CExpr where
                        case op of
                          CMulOp -> return (Type.mul t1 t2)
                          CDivOp -> return (Type.div t1 t2)
-                         CNeqOp -> do (if t1 /= t2 then
-                                         err expr ("comparison of incompatible types: "
-                                                   ++ show t1 ++ ", " ++ show t2)
-                                       else
-                                         return ())
+                         CNeqOp -> do checkCompatibility expr t1 t2
                                       return (Just (Numeric Nothing))
+                         CAddOp -> do checkCompatibility expr t1 t2
+                                      return (Just t1)
                          _ -> do err expr ("TODO findType CBinary " ++ show op)
                                  return Nothing
                    _ -> do err expr "Missing unit on one side of binary operator"
                            return Nothing
           CCast (CDecl specs [] _) e _ -> do td <- findType specs
                                              te <- findType e
-                                             return td
+                                             return (fmap Type.monomorphize td)
           CCast (CDecl specs _ _) e _ -> err expr "TODO findType CCast with triplets" >> return Nothing
           CUnary op e _ -> err expr "TODO findType CUnary" >> return Nothing
           CSizeofExpr e _ -> err expr "TODO findType CSizeofExpr" >> return Nothing
@@ -108,6 +107,13 @@ instance FindType CExpr where
           CLabAddrExpr ident _ -> err expr "TODO findType CLabAddrExpr" >> return Nothing
           CBuiltinExpr builtin -> err expr "TODO findType CBuiltinExpr" >> return Nothing
 
+checkCompatibility :: Pos a => a -> Type -> Type -> Analysis ()
+checkCompatibility pos t1 t2 =
+    if t1 /= t2 then
+        err pos ("incompatible types: " ++ show t1 ++ ", " ++ show t2)
+    else
+        return ()
+
 checkArgs :: NodeInfo -> [Maybe Type] -> [Type] -> Bool -> Analysis ()
 checkArgs node actuals formals acceptVarArgs =
     case (actuals, formals, acceptVarArgs) of
@@ -127,10 +133,10 @@ checkArgs node actuals formals acceptVarArgs =
 instance FindType CConst where
     findType c =
         case c of
-          CIntConst _ _ -> return (Just (Numeric Nothing))
-          CCharConst _ _ -> return (Just (Numeric Nothing))
-          CFloatConst _ _ -> return (Just (Numeric Nothing))
-          CStrConst _ _ -> return (Just (Numeric Nothing))
+          CIntConst _ _ -> return (Just (Numeric (Just Unit.one)))
+          CCharConst _ _ -> return (Just (Numeric (Just Unit.one)))
+          CFloatConst _ _ -> return (Just (Numeric (Just Unit.one)))
+          CStrConst _ _ -> return (Just (Numeric (Just Unit.one)))
 
 instance FindType CStat where
     findType stat =
@@ -193,8 +199,7 @@ instance FindType CTypeSpec where
           CBoolType _ -> return (Just Other)
           CComplexType _ -> return (Just (Numeric Nothing))
           CSUType csu _ -> findType csu
-          CEnumType _ _ -> do err typeSpec "TODO findType CEnumType"
-                              return Nothing
+          CEnumType ce _ -> findType ce
           CTypeDef (Ident name _ _) _ ->
               do st <- getSymTab
                  case SymTab.lookupType name st of
@@ -227,6 +232,32 @@ instance FindType CStructUnion where
                     fieldSymTab <- getSymTab
                     setSymTab (bindTag name (SymTab.variables fieldSymTab) parent)
            return (Just (Struct name))
+
+instance FindType CEnum where
+    findType enum =
+        -- we ignore the name of enums. All we care about is that they're numeric.
+        -- we don't support unit annotations on enums.
+        case enum of
+          CEnum _ Nothing _ _ -> return (Just (Numeric Nothing))
+          CEnum _ (Just bindings) _ _ ->
+              do mapM_ applyEnumBinding bindings
+                 return (Just (Numeric (Just Unit.one)))
+
+applyEnumBinding :: (Ident, Maybe CExpr) -> Analysis ()
+applyEnumBinding (ident, maybeExpr) =
+    case ident of
+      Ident name _ _ ->
+          do case maybeExpr of
+               Nothing -> return ()
+               Just e -> do ty <- findType e
+                            case ty of
+                              Nothing -> return ()
+                              Just ty' ->
+                                  if ty' /= Numeric (Just Unit.one) then
+                                      err e ("Expected numeric with unit 1, got " ++ show ty)
+                                  else
+                                      return ()
+             modifySymTab (bindVariable name (Numeric (Just Unit.one)))
 
 instance FindType CTypeQual where
     findType typeQual =
@@ -319,7 +350,7 @@ applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =
 deriveType :: [CDerivedDeclr] -> Maybe Type -> Analysis (Maybe Type)
 deriveType ds ty =
     case ds of
-      [] -> return ty
+      [] -> return (fmap Type.monomorphize ty)
       (d : dr) -> do ty' <- deriveType dr ty
                      deriveType1 d ty'
 

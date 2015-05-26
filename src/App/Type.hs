@@ -55,3 +55,9 @@ mergeMaybe m1 m2 =
       (Just t1, Nothing) -> Just t1
       (Nothing, Just t2) -> Just t2
       (Nothing, Nothing) -> Nothing
+
+monomorphize :: Type -> Type
+monomorphize t =
+    case t of
+      Numeric Nothing -> Numeric (Just Unit.one) -- polymorphic unit becomes unit 1
+      _ -> t
