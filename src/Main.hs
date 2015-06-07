@@ -22,7 +22,7 @@ main = do
 
 printError :: Err -> IO ()
 printError (Err pos msg) =
-  hPutStrLn stderr (show pos ++ ": " ++ msg)
+  hPutStrLn stderr (posFile pos ++ ":" ++ show (posRow pos) ++ ": " ++ msg)
                
 analyzeCTranslUnit :: CTranslUnit -> Analysis ()
 analyzeCTranslUnit (CTranslUnit decls _) =
