@@ -40,21 +40,15 @@ instance FindType CExpr where
           CCond e1 (Just e2) e3 _ -> err expr "TODO findType CCond" >> return Nothing
           CCond e1 Nothing e3 _ -> err expr "TODO findType CCond" >> return Nothing
           CBinary op e1 e2 _ ->
-              do mt1 <- findType e1
-                 mt2 <- findType e2
-                 case (mt1, mt2) of
-                   (Nothing, Nothing) -> return Nothing
-                   (Just t1, Just t2) ->
-                       case op of
-                         CMulOp -> return (Type.mul t1 t2)
-                         CDivOp -> return (Type.div t1 t2)
-                         CNeqOp -> do checkCompatibility expr t1 t2
-                                      return (Just (Numeric Nothing))
-                         CAddOp -> do checkCompatibility expr t1 t2
-                                      return (Just t1)
-                         _ -> do err expr ("TODO findType CBinary " ++ show op)
-                                 return Nothing
-                   _ -> do err expr "Missing unit on one side of binary operator"
+              do t1 <- findType e1
+                 t2 <- findType e2
+                 case op of
+                   CMulOp -> combineTypes expr "can't be multiplied" Type.mul t1 t2
+                   CDivOp -> combineTypes expr "can't be divided" Type.div t1 t2
+                   CNeqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2
+                                return (Just (Numeric (Just Unit.one)))
+                   CAddOp -> combineTypes expr "can't be added" Type.add t1 t2
+                   _ -> do err expr ("TODO findType CBinary " ++ show op)
                            return Nothing
           CCast (CDecl specs [] _) e _ -> do td <- findType specs
                                              te <- findType e
@@ -107,6 +101,15 @@ instance FindType CExpr where
           CLabAddrExpr ident _ -> err expr "TODO findType CLabAddrExpr" >> return Nothing
           CBuiltinExpr builtin -> err expr "TODO findType CBuiltinExpr" >> return Nothing
 
+combineTypes :: Pos a => a -> String -> (Type -> Type -> Maybe Type) -> Maybe Type -> Maybe Type -> Analysis (Maybe Type)
+combineTypes pos msg f t1 t2 =
+    case (t1, t2) of
+      (Just t1', Just t2') ->
+          case f t1' t2' of
+            Nothing -> err pos ("type " ++ show t1 ++ " and " ++ show t2 ++ " " ++ msg) >> return Nothing
+            Just ty -> return (Just ty)
+      _ -> return Nothing
+    
 checkCompatibility :: Pos a => a -> Type -> Type -> Analysis ()
 checkCompatibility pos t1 t2 =
     if t1 /= t2 then
