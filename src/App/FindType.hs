@@ -360,7 +360,7 @@ applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =
                       modifySymTab (SymTab.bindVariable name ty')
                 Nothing -> err declr' ("Could not infer type for " ++ name)
              _ -> err node ("Unhandled CDeclr: " ++ show declr)
-         _ -> err node ("Unhandled CDeclr: " ++ show declr)
+         Nothing -> return () -- happens in /usr/include/bits/waitstatus.h
 
 deriveType :: [CDerivedDeclr] -> Maybe Type -> Analysis (Maybe Type)
 deriveType ds ty =

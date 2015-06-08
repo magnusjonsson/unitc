@@ -21,9 +21,12 @@ main = do
             case errors of
              [] -> exitSuccess
              _ -> exitFailure
+
 addGccBuiltins :: Analysis ()
 addGccBuiltins =
     do modifySymTab (SymTab.bindType "__builtin_va_list" Type.Other)
+       modifySymTab (SymTab.bindVariable "__builtin_bswap32" (Type.Fun Type.one [Type.one] False))
+       modifySymTab (SymTab.bindVariable "__builtin_bswap64" (Type.Fun Type.one [Type.one] False))
 
 printError :: Err -> IO ()
 printError (Err pos msg) =
