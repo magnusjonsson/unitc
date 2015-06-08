@@ -54,7 +54,19 @@ instance FindType CExpr where
                                              te <- findType e
                                              return (fmap Type.monomorphize td)
           CCast (CDecl specs _ _) e _ -> err expr "TODO findType CCast with triplets" >> return Nothing
-          CUnary op e _ -> err expr "TODO findType CUnary" >> return Nothing
+          CUnary op e _ ->
+              do t <- findType e
+                 case op of
+                   CPreIncOp -> combineTypes expr "can't be added" Type.add t (Just Type.one)
+                   CPreDecOp -> combineTypes expr "can't be subtracted" Type.add t (Just Type.one)
+                   CPostIncOp -> combineTypes expr "can't be added" Type.add t (Just Type.one)
+                   CPostDecOp -> combineTypes expr "can't be subtracted" Type.add t (Just Type.one)
+                   CAdrOp -> err expr "TODO findType CAdrOp" >> return Nothing
+                   CIndOp -> err expr "TODO findType CIndOp" >> return Nothing
+                   CPlusOp -> combineTypes expr "can't be multiplied" Type.mul t (Just Type.one)
+                   CMinOp -> combineTypes expr "can't be multiplied" Type.mul t (Just Type.one)
+                   CCompOp -> combineTypes expr "can't be added" Type.mul t (Just Type.one) >> return (Just Type.one)
+                   CNegOp -> combineTypes expr "can't be added" Type.mul t (Just Type.one) >> return (Just Type.one)
           CSizeofExpr e _ -> err expr "TODO findType CSizeofExpr" >> return Nothing
           CSizeofType decl _ -> err expr "TODO findType CSizeofType" >> return Nothing
           CAlignofExpr e _ -> err expr "TODO findType CAlignofExpr" >> return Nothing

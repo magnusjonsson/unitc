@@ -9,6 +9,9 @@ data Type = Numeric (Maybe Unit)
           | Other
     deriving (Show, Eq)
 
+one :: Type
+one = Numeric (Just Unit.one)
+
 add :: Type -> Type -> Maybe Type
 add (Numeric (Just t1)) (Numeric (Just t2)) | t1 == t2 = Just (Numeric (Just t1))
 add (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
