@@ -27,6 +27,9 @@
 #include <wctype.h>
 #include <locale.h>
 #include <stdio.h>
+#include <stdnoreturn.h>
+#include <stdalign.h>
+#include <uchar.h>
 
 int main(int argc, char **argv) {
   return 0;
