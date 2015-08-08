@@ -37,17 +37,29 @@ instance FindType CExpr where
                          _ -> do err expr ("TODO findType CAssign " ++ show op)
                                  return Nothing
                    _ -> return Nothing
-          CCond e1 (Just e2) e3 _ -> err expr "TODO findType CCond" >> return Nothing
+          CCond e1 (Just e2) e3 _ ->
+              do t1 <- findType e1
+                 _ <- combineTypes expr "don't match" Type.add t1 (Just Type.one)
+                 t2 <- findType e2
+                 t3 <- findType e3
+                 combineTypes expr "must have same unit" Type.add t1 t2
           CCond e1 Nothing e3 _ -> err expr "TODO findType CCond" >> return Nothing
           CBinary op e1 e2 _ ->
               do t1 <- findType e1
                  t2 <- findType e2
                  case op of
+                   CEqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
+                   CNeqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
+                   CLeOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
+                   CGrOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
+                   CLeqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
+                   CGeqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
+                   CAddOp -> combineTypes expr "can't be added" Type.add t1 t2
+                   CSubOp -> combineTypes expr "can't be subtracted" Type.sub t1 t2
                    CMulOp -> combineTypes expr "can't be multiplied" Type.mul t1 t2
                    CDivOp -> combineTypes expr "can't be divided" Type.div t1 t2
-                   CNeqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2
-                                return (Just (Numeric (Just Unit.one)))
-                   CAddOp -> combineTypes expr "can't be added" Type.add t1 t2
+                   CShlOp -> do _ <- combineTypes expr "can't be unified" Type.add t2 (Just Type.one); return t1
+                   CShrOp -> do _ <- combineTypes expr "can't be unified" Type.add t2 (Just Type.one); return t1
                    _ -> do err expr ("TODO findType CBinary " ++ show op)
                            return Nothing
           CCast (CDecl specs [] _) e _ -> do td <- findType specs
@@ -121,7 +133,7 @@ combineTypes pos msg f t1 t2 =
             Nothing -> err pos ("type " ++ show t1 ++ " and " ++ show t2 ++ " " ++ msg) >> return Nothing
             Just ty -> return (Just ty)
       _ -> return Nothing
-    
+
 checkCompatibility :: Pos a => a -> Type -> Type -> Analysis ()
 checkCompatibility pos t1 t2 =
     if t1 /= t2 then
