@@ -3,4 +3,4 @@ Dimensional analysis for the C programming language. Lets programmers annotate C
 
 This is a work in progress. Not much is working yet.
 
-Example invocation: `cabal run doc/examples/example1.c`
+Example invocation: `cabal run doc/examples/bad1.c`
