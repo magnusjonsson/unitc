@@ -60,6 +60,10 @@ instance FindType CExpr where
                    CDivOp -> combineTypes expr "can't be divided" Type.div t1 t2
                    CShlOp -> do _ <- combineTypes expr "can't be unified" Type.add t2 (Just Type.one); return t1
                    CShrOp -> do _ <- combineTypes expr "can't be unified" Type.add t2 (Just Type.one); return t1
+                   COrOp -> combineTypes expr "can't be unified" Type.add t1 t2
+                   CAndOp -> combineTypes expr "can't be unified" Type.add t1 t2
+                   CLorOp -> combineTypes expr "can't be unified" Type.add t1 t2
+                   CLndOp -> combineTypes expr "can't be unified" Type.add t1 t2
                    _ -> do err expr ("TODO findType CBinary " ++ show op)
                            return Nothing
           CCast (CDecl specs [] _) e _ -> do td <- findType specs
