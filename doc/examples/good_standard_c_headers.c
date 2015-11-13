@@ -18,7 +18,7 @@
 //#include <stdatomic.h>
 #include <time.h>
 #include <inttypes.h>
-#include <uchar.h>
+//#include <uchar.h>
 #include <iso646.h>
 #include <stddef.h>
 #include <wchar.h>
@@ -29,7 +29,6 @@
 #include <stdio.h>
 #include <stdnoreturn.h>
 #include <stdalign.h>
-#include <uchar.h>
 
 int main(int argc, char **argv) {
   return 0;

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 exitcode=0
-unitc=dist/build/unitc/unitc
+unitc="stack exec unitc"
 
 for f in doc/examples/good*.c; do
   echo -n $f:

@@ -14,7 +14,7 @@
 #include <libgen.h>
 #include <monetary.h>
 #include <mqueue.h>
-#include <ndbm.h>
+//#include <ndbm.h>
 #include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
