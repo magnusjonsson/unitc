@@ -5,17 +5,23 @@ import App.Type as Type
 import Control.Monad
 import Language.C as C
 import Language.C.System.GCC as GCC
+import Language.C.System.Preprocess as Preprocess
 import System.IO
 import System.Environment (getArgs)
 import System.Exit
 
 main :: IO ()
 main = do
-  [cFile] <- getArgs
-  res <- C.parseCFile (newGCC "gcc") Nothing [] cFile
+  rawArgs <- getArgs
+  let args = filter (/= "-g3") rawArgs
+  let cpp = newGCC "gcc"
+  let (Right (cppArgs, _ignoredArgs)) = parseCPPArgs cpp args
+  Right inputStream <- runPreprocessor cpp cppArgs
+  let ns = newNameSupply
+  let res = execParser translUnitP inputStream (initPos "") builtinTypeNames ns
   case res of
     Left error -> print error
-    Right u ->
+    Right (u, _ns') ->
       let errors = execAnalysis (addGccBuiltins >> analyzeCTranslUnit u)
       in do mapM_ printError errors
             case errors of
