@@ -35,6 +35,7 @@ addGccBuiltins =
        modifySymTab (SymTab.bindVariable "__builtin_bswap64" (Type.Fun Type.one [(Nothing, Type.one)] False))
        modifySymTab (SymTab.bindVariable "__builtin_constant_p" (Type.Fun Type.one [(Nothing, Type.Void)] False))
        modifySymTab (SymTab.bindVariable "__builtin_strchr" (Type.Fun Type.one [(Nothing, Type.one), (Nothing, Type.one)] False))
+       modifySymTab (SymTab.bindVariable "__builtin_expect" (Type.Fun Type.one [(Nothing, Type.one), (Nothing, Type.one)] False))
 
 printError :: Err -> IO ()
 printError (Err pos msg) =

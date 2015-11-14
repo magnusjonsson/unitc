@@ -6,5 +6,6 @@ int main(int argc, char **argv) {
   a = __builtin_constant_p(1);
   a = __builtin_constant_p("string");
   a = __builtin_strchr("string", 's');
+  a = __builtin_expect(1, a);
   return a;
 }
