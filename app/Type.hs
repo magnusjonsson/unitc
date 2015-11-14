@@ -4,7 +4,7 @@ import Unit
 import Control.Monad
 
 data Type = Numeric (Maybe Unit)
-          | Fun Type [Type] Bool -- returnType argTypes acceptsVarArgs
+          | Fun Type [(Maybe String, Type)] Bool -- returnType argNamesAndTypes acceptsVarArgs
           | Struct String
           | Void
           | Other
@@ -52,7 +52,7 @@ merge t1 t2 =
       (Fun r1 a1 d1, Fun r2 a2 d2) ->
           -- maybe monad
           do r <- merge r1 r2
-             a <- mapM (uncurry merge) (zip a1 a2)
+             a <- mapM (uncurry mergeArg) (zip a1 a2)
              guard (d1 == d2)
              return (Fun r a d1)
       (Struct n1, Struct n2) -> if n1 == n2 then Just t1 else Nothing
@@ -60,6 +60,11 @@ merge t1 t2 =
       (Void, _) -> Just t2 -- TODO maybe merging Void with anything is a bad idea?
       (_, Void) -> Just t1
       _ -> Nothing
+
+mergeArg :: (Maybe String, Type) -> (Maybe String, Type) -> Maybe (Maybe String, Type)
+mergeArg (name1, ty1) (name2, ty2) =
+  do ty <- merge ty1 ty2
+     return (name1 `mplus` name2, ty)
 
 mergeMaybe :: Maybe Type -> Maybe Type -> Maybe Type
 mergeMaybe m1 m2 =

@@ -146,7 +146,7 @@ checkCompatibility pos t1 t2 =
     else
         return ()
 
-checkArgs :: NodeInfo -> [Maybe Type] -> [Type] -> Bool -> Analysis ()
+checkArgs :: NodeInfo -> [Maybe Type] -> [(Maybe String, Type)] -> Bool -> Analysis ()
 checkArgs node actuals formals acceptVarArgs =
     case (actuals, formals, acceptVarArgs) of
       ([], [], _) -> return ()
@@ -155,9 +155,9 @@ checkArgs node actuals formals acceptVarArgs =
       (_, [], False) -> err node "Too many args"
       (Nothing : as, f : fs, _) ->
           checkArgs node as fs acceptVarArgs
-      (Just a : as, f : fs, _) ->
-          do if not (Type.assignable f a) then
-                 err node ("Argument type mismatch. Found " ++ show a ++ ", expected " ++ show f ++ ".")
+      (Just a : as, (fname, ftype) : fs, _) ->
+          do if not (Type.assignable ftype a) then
+                 err node ("Argument type mismatch. Found " ++ show a ++ ", expected " ++ show ftype ++ ".")
              else
                  return ()
              checkArgs node as fs acceptVarArgs
@@ -390,7 +390,7 @@ deriveType ds ty =
       [] -> return (fmap Type.monomorphize ty)
       (d : dr) -> do ty' <- deriveType dr ty
                      deriveType1 d ty'
-
+  
 deriveType1 :: CDerivedDeclr -> Maybe Type -> Analysis (Maybe Type)
 deriveType1 d maybeTy =
     case maybeTy of
@@ -399,49 +399,36 @@ deriveType1 d maybeTy =
           case d of
             CPtrDeclr _ _ -> return (Just ty)
             CArrDeclr _ _ _ -> return (Just ty)
-            CFunDeclr (Left idents) attrs _ ->
-                do err d "TODO deriveType1 CFunDeclr with old-style args"
-                   return Nothing
-            CFunDeclr (Right (cdecls, dots)) attrs _ ->
-                do maybeArgs <- mapM argType cdecls
-                   case sequence maybeArgs of -- maybe monad
-                     Nothing -> return Nothing
-                     Just args -> return (Just (Fun ty args dots))
+            CFunDeclr (Left _) _ _ ->
+              do err d "TODO old-style function declaration"
+                 return Nothing
+            CFunDeclr (Right (decls, varArgs)) attrs _ ->
+              case decls of
+                [CDecl [CTypeSpec (CVoidType _)] [] _] ->
+                  return (Just (Fun ty [] varArgs))
+                _ ->
+                  do maybeArgs <- mapM argNameAndType decls
+                     case sequence maybeArgs of -- maybe monad
+                       Nothing -> return Nothing
+                       Just args -> return (Just (Fun ty args varArgs))
 
-argType :: CDecl -> Analysis (Maybe Type)
-argType cdecl =
+argNameAndType :: CDecl -> Analysis (Maybe (Maybe String, Type))
+argNameAndType cdecl =
     case cdecl of
-      CDecl specs [] _ -> findType specs
-      CDecl specs [(Just (CDeclr _ derivedDeclrs _ attrs _), Nothing, Nothing)] _ ->
+      CDecl specs [] _ -> do ty <- findType specs
+                             case ty of
+                               Just ty' -> return (Just (Nothing, ty'))
+                               Nothing -> return Nothing
+      CDecl specs [(Just (CDeclr maybeIdent derivedDeclrs _ attrs _), Nothing, Nothing)] _ ->
           do specType <- findType specs
              attrType <- findType attrs
-             deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
-      _ -> do err cdecl ("Strange argument:"  ++ show (pretty cdecl))
-              return Nothing
-
-funDefArgNames :: CFunDef -> Analysis (Maybe [String])
-funDefArgNames f =
-    case f of
-      CFunDef _ (CDeclr _ derivedDeclrs _ _ _) _ _ _ ->
-          case derivedDeclrs of
-            [] -> do err f "Fundef without derived declarator??"
-                     return Nothing
-            lastDerivedDeclr : _ ->
-                case lastDerivedDeclr of
-                  CFunDeclr (Left idents) _ _ ->
-                      do err f "TODO argNames CFunDeclr with old-style args"
-                         return Nothing
-                  CFunDeclr (Right (cdecls, _)) _ _->
-                      do maybeNames <- mapM argName cdecls
-                         return (sequence maybeNames) -- list monad
-                  _ -> do err f ("TODO Fundef without function declarator?")
-                          return Nothing
-
-argName :: CDecl -> Analysis (Maybe String)
-argName cdecl =
-    case cdecl of
-      CDecl _ [(Just (CDeclr (Just (Ident name _ _)) _ _ _ _), _, _)] _ -> return (Just name)
-      _ -> do err cdecl "Can't find name of argument"
+             ty <- deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
+             case ty of
+               Nothing -> return Nothing
+               Just ty' -> 
+                 do let maybeName = fmap (\(Ident name _ _) -> name) maybeIdent
+                    return (Just (maybeName, ty'))
+      _ -> do err cdecl "TODO strange arg declaration"
               return Nothing
 
 applyCFunDef :: CFunDef -> Analysis ()
@@ -461,16 +448,12 @@ applyCFunDef f =
              outsideScope <- getSymTab
 
              case ty of
-               Just (Fun rt types _) ->
-                   do argNames <- funDefArgNames f
-                      modifySymTab (SymTab.setReturnType (Just rt))
-                      case argNames of
-                        Nothing -> return ()
-                        Just names ->
-                            if length names /= length types then
-                                err f "Number of types and names of args different??"
-                            else
-                                modifySymTab (SymTab.bindVariables (zip names types))
+               Just (Fun rt args _) ->
+                   do modifySymTab (SymTab.setReturnType (Just rt))
+                      forM_ args $ \ arg ->
+                        case arg of
+                          (Just argName, argTy) -> modifySymTab (SymTab.bindVariable argName argTy)
+                          (Nothing, argTy) -> err f "Missing argument name"
                _ -> return ()
 
              _ <- findType body
