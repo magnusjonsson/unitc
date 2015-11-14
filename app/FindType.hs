@@ -61,6 +61,7 @@ instance FindType CExpr where
                    CAndOp -> combineTypes expr "can't be unified" Type.add t1 t2
                    CLorOp -> combineTypes expr "can't be unified" Type.add t1 t2
                    CLndOp -> combineTypes expr "can't be unified" Type.add t1 t2
+                   CXorOp -> combineTypes expr "can't be unified" Type.add t1 t2
                    _ -> do err expr ("TODO findType CBinary " ++ show op)
                            return Nothing
           CCast (CDecl specs triplets _) e _ ->
@@ -244,7 +245,7 @@ instance FindType CTypeSpec where
           CDoubleType _ -> return (Just (Numeric Nothing))
           CSignedType _ -> return (Just (Numeric Nothing))
           CUnsigType _ -> return (Just (Numeric Nothing))
-          CBoolType _ -> return (Just Other)
+          CBoolType _ -> return (Just (Numeric Nothing))
           CComplexType _ -> return (Just (Numeric Nothing))
           CSUType csu _ -> findType csu
           CEnumType ce _ -> findType ce
