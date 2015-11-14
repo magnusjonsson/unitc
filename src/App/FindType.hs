@@ -419,7 +419,7 @@ funDefArgNames :: CFunDef -> Analysis (Maybe [String])
 funDefArgNames f =
     case f of
       CFunDef _ (CDeclr _ derivedDeclrs _ _ _) _ _ _ ->
-          case reverse (derivedDeclrs) of
+          case derivedDeclrs of
             [] -> do err f "Fundef without derived declarator??"
                      return Nothing
             lastDerivedDeclr : _ ->
@@ -430,7 +430,7 @@ funDefArgNames f =
                   CFunDeclr (Right (cdecls, _)) _ _->
                       do maybeNames <- mapM argName cdecls
                          return (sequence maybeNames) -- list monad
-                  _ -> do err f "TODO Fundef without function declarator?"
+                  _ -> do err f ("TODO Fundef without function declarator?")
                           return Nothing
 
 argName :: CDecl -> Analysis (Maybe String)
