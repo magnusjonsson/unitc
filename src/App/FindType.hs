@@ -197,8 +197,8 @@ instance FindType CStat where
           CFor init cond incr b _ -> err stat "TODO findType CFor" >> return Nothing
           CGoto _ _ -> err stat "TODO findType CGoto" >> return Nothing
           CGotoPtr e _ -> err stat "TODO findType CGotoPtr" >> return Nothing
-          CCont _ -> err stat "TODO findType CCont" >> return Nothing
-          CBreak _ -> err stat "TODO findType CBreak" >> return Nothing
+          CCont _ -> return Nothing
+          CBreak _ -> return Nothing
           CReturn e _ ->
               do ty <- case e of
                          Nothing -> return (Just Other)
