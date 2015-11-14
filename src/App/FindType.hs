@@ -187,7 +187,9 @@ instance FindType CStat where
                                      t1 <- findType s2
                                      return Nothing
           CSwitch e b _ -> err stat "TODO findType CSwitch" >> return Nothing
-          CWhile e b _ _ -> err stat "TODO findType CWhile" >> return Nothing
+          CWhile e b _ _ -> do te <- findType e
+                               tb <- findType b
+                               return Nothing
           CFor init cond incr b _ -> err stat "TODO findType CFor" >> return Nothing
           CGoto _ _ -> err stat "TODO findType CGoto" >> return Nothing
           CGotoPtr e _ -> err stat "TODO findType CGotoPtr" >> return Nothing
