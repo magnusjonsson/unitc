@@ -48,8 +48,8 @@ instance FindType CExpr where
               do t1 <- findType e1
                  t2 <- findType e2
                  case op of
-                   CEqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
-                   CNeqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
+                   CEqOp -> do _ <- combineTypes expr "can't be compared" Type.merge t1 t2; return (Just Type.one)
+                   CNeqOp -> do _ <- combineTypes expr "can't be compared" Type.merge t1 t2; return (Just Type.one)
                    CLeOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
                    CGrOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
                    CLeqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
