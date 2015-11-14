@@ -1,3 +1,4 @@
 int main(int argc, char **argv) {
-  return **argv;
+  int *argcp = &argc;
+  return **argv + *argcp;
 }
