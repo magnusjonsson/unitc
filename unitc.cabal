@@ -15,7 +15,13 @@ cabal-version:       >=1.10
 
 executable unitc
   main-is:             Main.hs
-  -- other-modules:       
+  other-modules:
+    App.FindType
+    App.FindUnit
+    App.Monad.Analysis
+    App.SymTab
+    App.Type
+    App.Unit
   -- other-extensions:    
   build-depends:       base >=4.5 && <4.9, containers >=0.5.6.2, extra, language-c, transformers
   hs-source-dirs:      src
