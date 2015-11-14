@@ -6,6 +6,7 @@ import Control.Monad
 data Type = Numeric (Maybe Unit)
           | Fun Type [Type] Bool -- returnType argTypes acceptsVarArgs
           | Struct String
+          | Void
           | Other
     deriving (Show, Eq)
 
@@ -32,6 +33,13 @@ div (Numeric (Just t1)) (Numeric (Just t2)) = Just (Numeric (Just (Unit.div t1 t
 div (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
 div _ _ = Nothing
 
+assignable :: Type -> Type -> Bool
+assignable to from =
+    -- TODO do this better
+    case merge to from of
+      Nothing -> False
+      Just _ -> True
+
 merge :: Type -> Type -> Maybe Type
 merge t1 t2 =
     case (t1, t2) of
@@ -49,6 +57,8 @@ merge t1 t2 =
              return (Fun r a d1)
       (Struct n1, Struct n2) -> if n1 == n2 then Just t1 else Nothing
       (Other, Other) -> Just Other
+      (Void, _) -> Just t2 -- TODO maybe merging Void with anything is a bad idea?
+      (_, Void) -> Just t1
       _ -> Nothing
 
 mergeMaybe :: Maybe Type -> Maybe Type -> Maybe Type

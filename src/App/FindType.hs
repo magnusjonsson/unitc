@@ -224,7 +224,7 @@ instance FindType CDeclSpec where
 instance FindType CTypeSpec where
     findType typeSpec =
         case typeSpec of
-          CVoidType _ -> return (Just Other)
+          CVoidType _ -> return (Just Void)
           CCharType _ -> return (Just (Numeric Nothing))
           CShortType _ -> return (Just (Numeric Nothing))
           CIntType _ -> return (Just (Numeric Nothing))
@@ -366,10 +366,10 @@ applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =
              do initType <- findType e
                 case (ty, initType) of
                   (Just ty', Just initType') ->
-                      if initType' /= ty' then
-                          err e ("Can't assign from " ++ show initType' ++ " to " ++ show ty')
+                      if Type.assignable ty' initType' then
+                        return ()
                       else
-                          return ()
+                        err e ("Can't assign from " ++ show initType' ++ " to " ++ show ty')
                   _ -> return ()
          Nothing -> return ()
          _ -> err node ("TODO applyTriplet initr=" ++ show initr)
