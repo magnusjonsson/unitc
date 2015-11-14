@@ -1,6 +1,6 @@
-module App.Type where
+module Type where
 
-import App.Unit as Unit
+import Unit
 import Control.Monad
 
 data Type = Numeric (Maybe Unit)

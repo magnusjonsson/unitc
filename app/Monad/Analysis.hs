@@ -1,6 +1,6 @@
-module App.Monad.Analysis where
+module Monad.Analysis where
 
-import App.SymTab as SymTab
+import SymTab
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Writer.Strict
 import Control.Monad.Trans.Class (lift)

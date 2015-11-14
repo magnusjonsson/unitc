@@ -1,12 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module App.FindType where
+module FindType where
 
-import App.FindUnit
-import App.Monad.Analysis
-import qualified App.SymTab as SymTab
-import qualified App.Type as Type
-import qualified App.Unit as Unit
+import FindUnit
+import Monad.Analysis
+import qualified SymTab
+import Type
+import qualified Unit
 
 import Control.Monad
 import Language.C.Pretty
@@ -14,9 +14,6 @@ import Language.C.Data.Node
 import Language.C.Data.Position
 import Language.C.Data.Ident
 import Language.C.Syntax.AST
-
-import App.Type
-import App.SymTab
 
 class FindType a where
     findType :: a -> Analysis (Maybe Type)
@@ -116,7 +113,7 @@ instance FindType CExpr where
                                                         Nothing -> do err expr ("Could not find struct tag " ++ tag ++ " in symbol table")
                                                                       return Nothing
                                                         Just fields ->
-                                                            case lookupField field fields of
+                                                            case SymTab.lookupField field fields of
                                                               Nothing -> do err expr ("No such field " ++ field ++ " in tag " ++ tag)
                                                                             return Nothing
                                                               Just ty -> return (Just ty)
@@ -204,7 +201,7 @@ instance FindType CStat where
                          Nothing -> return (Just Other)
                          Just e' -> findType e'
                  st <- getSymTab
-                 case returnType st of
+                 case SymTab.returnType st of
                    Nothing -> err stat "Encountered return statement but not sure what return type is expected!"
                    Just r ->
                        if ty /= Just r then
@@ -267,7 +264,7 @@ instance FindType CStructUnion where
                     setSymTab (SymTab.newScope parent)
                     mapM_ applyCDecl fields
                     fieldSymTab <- getSymTab
-                    setSymTab (bindTag name (SymTab.variables fieldSymTab) parent)
+                    setSymTab (SymTab.bindTag name (SymTab.variables fieldSymTab) parent)
            return (Just (Struct name))
 
 instance FindType CEnum where
@@ -294,7 +291,7 @@ applyEnumBinding (ident, maybeExpr) =
                                       err e ("Expected numeric with unit 1, got " ++ show ty)
                                   else
                                       return ()
-             modifySymTab (bindVariable name (Numeric (Just Unit.one)))
+             modifySymTab (SymTab.bindVariable name (Numeric (Just Unit.one)))
 
 instance FindType CTypeQual where
     findType typeQual =

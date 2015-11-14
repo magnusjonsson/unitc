@@ -1,7 +1,7 @@
-import App.FindType as FindType
-import App.Monad.Analysis
-import App.SymTab as SymTab
-import App.Type as Type
+import FindType
+import Monad.Analysis
+import SymTab
+import Type
 import Control.Monad
 import Language.C as C
 import Language.C.System.GCC as GCC

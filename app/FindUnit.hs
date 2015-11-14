@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module App.FindUnit where
+module FindUnit where
 
-import App.Unit as Unit
-import App.Monad.Analysis
+import Unit
+import Monad.Analysis
 import Control.Monad
 import Control.Monad.Extra
 import Language.C.Pretty

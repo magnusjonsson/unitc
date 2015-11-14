@@ -1,6 +1,6 @@
-module App.SymTab where
+module SymTab where
 
-import App.Type as Type
+import Type
 import qualified Data.Map as Map
 import Data.List as List
 import Control.Monad (mplus)
