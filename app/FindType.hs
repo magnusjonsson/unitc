@@ -223,7 +223,7 @@ instance FindType CStat where
                        else
                            return ()
                  return Nothing
-          CAsm _ _ -> err stat "TODO findType CAsm" >> return Nothing
+          CAsm _ _ -> return Nothing
 
 instance FindType CDeclSpec where
     findType declSpec =
