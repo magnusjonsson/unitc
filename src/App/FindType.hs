@@ -159,7 +159,7 @@ checkArgs node actuals formals acceptVarArgs =
       (Nothing : as, f : fs, _) ->
           checkArgs node as fs acceptVarArgs
       (Just a : as, f : fs, _) ->
-          do if a /= f then
+          do if not (Type.assignable f a) then
                  err node ("Argument type mismatch. Found " ++ show a ++ ", expected " ++ show f ++ ".")
              else
                  return ()
