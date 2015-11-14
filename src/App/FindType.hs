@@ -42,7 +42,7 @@ instance FindType CExpr where
                  _ <- combineTypes expr "don't match" Type.add t1 (Just Type.one)
                  t2 <- findType e2
                  t3 <- findType e3
-                 combineTypes expr "must have same unit" Type.add t1 t2
+                 combineTypes expr "must have same unit" Type.merge t1 t2
           CCond e1 Nothing e3 _ -> err expr "TODO findType CCond" >> return Nothing
           CBinary op e1 e2 _ ->
               do t1 <- findType e1
