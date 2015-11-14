@@ -31,7 +31,7 @@ instance FindType CExpr where
                  case (mt1, mt2) of
                    (Just t1, Just t2) ->
                        case op of
-                         CAssignOp -> if t1 == t2 then return (Just t1)
+                         CAssignOp -> if Type.assignable t1 t2 then return (Just t1)
                                       else do err expr ("Can't assign from " ++ show t2 ++ " to " ++ show t1)
                                               return Nothing
                          _ -> do err expr ("TODO findType CAssign " ++ show op)
