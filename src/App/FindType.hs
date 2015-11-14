@@ -78,7 +78,7 @@ instance FindType CExpr where
                    CPostIncOp -> combineTypes expr "can't be added" Type.add t (Just Type.one)
                    CPostDecOp -> combineTypes expr "can't be subtracted" Type.add t (Just Type.one)
                    CAdrOp -> err expr "TODO findType CAdrOp" >> return Nothing
-                   CIndOp -> err expr "TODO findType CIndOp" >> return Nothing
+                   CIndOp -> return t
                    CPlusOp -> combineTypes expr "can't be multiplied" Type.mul t (Just Type.one)
                    CMinOp -> combineTypes expr "can't be multiplied" Type.mul t (Just Type.one)
                    CCompOp -> combineTypes expr "can't be added" Type.mul t (Just Type.one) >> return (Just Type.one)
