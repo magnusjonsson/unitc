@@ -191,7 +191,21 @@ instance FindType CStat where
           CWhile e b _ _ -> do te <- findType e
                                tb <- findType b
                                return Nothing
-          CFor init cond incr b _ -> err stat "TODO findType CFor" >> return Nothing
+          CFor init cond incr body _ ->
+            do st <- getSymTab
+               case init of
+                 Left Nothing -> return ()
+                 Left (Just expr) -> findType expr >> return ()
+                 Right decl -> applyCDecl decl
+               case cond of
+                 Nothing -> return ()
+                 Just cond' -> findType cond' >> return ()
+               case incr of
+                 Nothing -> return ()
+                 Just incr' -> findType incr' >> return ()
+               ty <- findType body
+               setSymTab st
+               return ty
           CGoto _ _ -> err stat "TODO findType CGoto" >> return Nothing
           CGotoPtr e _ -> err stat "TODO findType CGotoPtr" >> return Nothing
           CCont _ -> return Nothing
