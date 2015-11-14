@@ -66,10 +66,14 @@ instance FindType CExpr where
                    CLndOp -> combineTypes expr "can't be unified" Type.add t1 t2
                    _ -> do err expr ("TODO findType CBinary " ++ show op)
                            return Nothing
-          CCast (CDecl specs [] _) e _ -> do td <- findType specs
-                                             te <- findType e
-                                             return (fmap Type.monomorphize td)
-          CCast (CDecl specs _ _) e _ -> err expr "TODO findType CCast with triplets" >> return Nothing
+          CCast (CDecl specs triplets _) e _ ->
+            do td <- findType specs
+               te <- findType e
+               td' <- case triplets of
+                        [] -> return td
+                        [(Just declr, Nothing, Nothing)] -> deriveTypeFromCDeclr td declr
+                        _ -> err expr "TODO findType CCast with strange triplets" >> return Nothing
+               return (fmap Type.monomorphize td')
           CUnary op e _ ->
               do t <- findType e
                  case op of
@@ -347,12 +351,15 @@ isTypeDef =
          (CStorageSpec (CTypedef _)) -> True
          _ -> False)
 
+deriveTypeFromCDeclr :: Maybe Type -> CDeclr -> Analysis (Maybe Type)
+deriveTypeFromCDeclr declSpecTy (CDeclr _ derivedDeclrs _ attrs _) =
+    do attrType <- findType attrs
+       deriveType derivedDeclrs (Type.mergeMaybe declSpecTy attrType)
+
 applyTriplet :: Pos a => a -> Maybe Type -> Bool -> Triplet -> Analysis ()
 applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =
     do ty <- case declr of
-               Just (CDeclr _ derivedDeclrs _ attrs _) ->
-                   do attrType <- findType attrs
-                      deriveType derivedDeclrs (Type.mergeMaybe declSpecTy attrType)
+               Just declr' -> deriveTypeFromCDeclr declSpecTy declr'
                Nothing -> return declSpecTy
        case initr of
          Just (CInitExpr e _) ->
