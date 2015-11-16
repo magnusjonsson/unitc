@@ -136,7 +136,13 @@ instance FindType CExpr where
                                                         return Nothing
                                           Just ty -> return (Just ty)
           CConst c -> findType c
-          CCompoundLit decl initList _ -> err expr "TODO findType CCompoundLit" >> return Nothing
+          CCompoundLit (CDecl specs triplets _) initList _ ->
+            do tspecs <- findType specs
+               case triplets of
+                 [] -> return ()
+                 _ -> err expr "TODO CCompoundLit with triplets"
+               checkInitList tspecs initList
+               return tspecs
           CStatExpr stat _ -> findType stat
           CLabAddrExpr ident _ -> err expr "TODO findType CLabAddrExpr" >> return Nothing
           CBuiltinExpr builtin -> err expr "TODO findType CBuiltinExpr" >> return Nothing
