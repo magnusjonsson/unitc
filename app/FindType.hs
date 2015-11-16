@@ -174,9 +174,9 @@ instance FindType CStat where
     findType stat =
         case stat of
           CLabel _ _ _ _ -> err stat "TODO findType CLabel" >> return (Just Void)
-          CCase e b _ -> err stat "TODO findType CCase" >> return Nothing
-          CCases e1 e2 b _ -> err stat "TODO findType CCases" >> return (Just Void)
-          CDefault b _ -> err stat "TODO findType CDefault" >> return (Just Void)
+          CCase e b _ -> return (Just Void)
+          CCases e1 e2 b _ -> return (Just Void)
+          CDefault b _ -> return (Just Void)
           CExpr Nothing _ -> err stat "TODO findType CExpr" >> return (Just Void)
           CExpr (Just e) _ -> findType e
           CCompound _ blockItems _ -> blockType blockItems
@@ -187,7 +187,16 @@ instance FindType CStat where
                                      t1 <- findType s1
                                      t2 <- findType s2
                                      return (Just Void)
-          CSwitch e b _ -> err stat "TODO findType CSwitch" >> return (Just Void)
+          CSwitch e b _ -> do te <- findType e
+                              case te of
+                                Nothing -> return ()
+                                Just te' ->
+                                  if Type.assignable (Type.one) te' then
+                                    return ()
+                                  else
+                                    err stat "Switch expression must be numeric of unit 1"
+                              tb <- findType b
+                              return (Just Void)
           CWhile e b _ _ -> do te <- findType e
                                tb <- findType b
                                return (Just Void)
