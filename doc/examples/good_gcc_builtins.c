@@ -5,7 +5,7 @@ int main(int argc, char **argv) {
   a = __builtin_bswap64(a);
   a = __builtin_constant_p(1);
   a = __builtin_constant_p("string");
-  a = __builtin_strchr("string", 's');
+  char *b = __builtin_strchr("string", 's');
   a = __builtin_expect(1, a);
   a = __builtin_strlen("string");
   a = __builtin_strcmp("string1", "string2");

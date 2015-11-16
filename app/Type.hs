@@ -1,14 +1,18 @@
 module Type where
 
-import Prelude hiding (and, or)
+import Prelude hiding (and, or, div)
 
-import Unit
+import qualified Unit
 import Control.Monad
 
-data Type = Numeric (Maybe Unit)
+data Type = Numeric (Maybe Unit.Unit)
           | Fun Type [(Maybe String, Type)] Bool -- returnType argNamesAndTypes acceptsVarArgs
           | Struct String
           | Void
+          | Any -- Wildcard, useful to bypass type checking for some builtins
+          | Zero
+          | Ptr Type
+          | Arr Type
           | Other
     deriving (Show, Eq)
 
@@ -16,21 +20,29 @@ one :: Type
 one = Numeric (Just Unit.one)
 
 add :: Type -> Type -> Maybe Type
+add x Zero = add x one
+add Zero x = add one x
 add (Numeric (Just t1)) (Numeric (Just t2)) | t1 == t2 = Just (Numeric (Just t1))
 add (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
 add _ _ = Nothing
 
 sub :: Type -> Type -> Maybe Type
+sub x Zero = sub x one
+sub Zero x = sub one x
 sub (Numeric (Just t1)) (Numeric (Just t2)) | t1 == t2 = Just (Numeric (Just t1))
 sub (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
 sub _ _ = Nothing
 
 mul :: Type -> Type -> Maybe Type
+mul x Zero = mul x one
+mul Zero x = mul one x
 mul (Numeric (Just t1)) (Numeric (Just t2)) = Just (Numeric (Just (Unit.mul t1 t2)))
 mul (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
 mul _ _ = Nothing
 
 div :: Type -> Type -> Maybe Type
+div x Zero = div x one
+div Zero x = div one x
 div (Numeric (Just t1)) (Numeric (Just t2)) = Just (Numeric (Just (Unit.div t1 t2)))
 div (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
 div _ _ = Nothing
@@ -71,20 +83,34 @@ xor = or
 
 assignable :: Type -> Type -> Bool
 assignable to from =
+    case (to, from) of
+    -- Some special cases
+    -- Generic merge
     -- TODO do this better
-    case merge to from of
-      Nothing -> False
-      Just _ -> True
+    _ -> case merge to from of
+          Nothing -> False
+          Just _ -> True
 
 numeric :: Type -> Bool
 numeric t =
   case t of
+    Zero -> True
     Numeric _ -> True
     _ -> False
 
 merge :: Type -> Type -> Maybe Type
 merge t1 t2 =
     case (t1, t2) of
+      (Any, _) -> Just t2
+      (_, Any) -> Just t1
+      (Void, Void) -> Just Void
+      (Ptr Void, Zero) -> Just (Ptr Void)
+      (Ptr Void, Ptr _) -> Just t2
+      (Ptr _, Ptr Void) -> Just t1
+      (Numeric Nothing, Zero) -> Just t1
+      (Zero, Numeric Nothing) -> Just t2
+      (Numeric (Just unit), Zero) | unit == Unit.one -> Just t1
+      (Zero, Numeric (Just unit)) | unit == Unit.one -> Just t2
       (Numeric m1, Numeric m2) ->
           case (m1, m2) of
             (Just u1, Just u2) -> if u1 == u2 then Just (Numeric (Just u1)) else Nothing
@@ -99,8 +125,8 @@ merge t1 t2 =
              return (Fun r a d1)
       (Struct n1, Struct n2) -> if n1 == n2 then Just t1 else Nothing
       (Other, Other) -> Just Other
-      (Void, _) -> Just t2 -- TODO maybe merging Void with anything is a bad idea?
-      (_, Void) -> Just t1
+      (Ptr t1', Ptr t2') -> do t' <- merge t1' t2'; return (Ptr t')
+      (Arr t1', Arr t2') -> do t' <- merge t1' t2'; return (Arr t')
       _ -> Nothing
 
 mergeArg :: (Maybe String, Type) -> (Maybe String, Type) -> Maybe (Maybe String, Type)

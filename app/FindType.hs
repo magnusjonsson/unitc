@@ -14,6 +14,7 @@ import Language.C.Data.Node
 import Language.C.Data.Position
 import Language.C.Data.Ident
 import Language.C.Syntax.AST
+import Language.C.Syntax.Constants
 
 class FindType a where
     findType :: a -> Analysis (Maybe Type)
@@ -53,7 +54,7 @@ instance FindType CExpr where
                  _ <- combineTypes expr "don't match" Type.add t1 (Just Type.one)
                  t2 <- findType e2
                  t3 <- findType e3
-                 combineTypes expr "must have same unit" Type.merge t1 t2
+                 combineTypes expr "must have same unit" Type.merge t2 t3
           CCond e1 Nothing e3 _ -> err expr "TODO findType CCond" >> return Nothing
           CBinary op e1 e2 _ ->
               do t1 <- findType e1
@@ -92,8 +93,13 @@ instance FindType CExpr where
                    CPreDecOp -> combineTypes expr "can't be subtracted" Type.add t (Just Type.one)
                    CPostIncOp -> combineTypes expr "can't be added" Type.add t (Just Type.one)
                    CPostDecOp -> combineTypes expr "can't be subtracted" Type.add t (Just Type.one)
-                   CAdrOp -> return t
-                   CIndOp -> return t
+                   CAdrOp -> case t of
+                               Nothing -> return Nothing
+                               Just t' -> return (Just (Ptr t'))
+                   CIndOp -> case t of
+                               Nothing -> return Nothing
+                               Just (Ptr t') -> return (Just t')
+                               Just _ -> err expr ("Can't dereference non-pointer type: " ++ show t) >> return Nothing
                    CPlusOp -> combineTypes expr "can't be multiplied" Type.mul t (Just Type.one)
                    CMinOp -> combineTypes expr "can't be multiplied" Type.mul t (Just Type.one)
                    CCompOp -> combineTypes expr "can't be added" Type.mul t (Just Type.one) >> return (Just Type.one)
@@ -106,8 +112,19 @@ instance FindType CExpr where
           CComplexReal e _ -> err expr "TODO findType CComplexReal" >> return Nothing
           CComplexImag e _ -> err expr "TODO findType CComplexImag" >> return Nothing
           CIndex e1 e2 _ -> do t1 <- findType e1
-                               t2 <- findType e1
-                               return t1
+                               t2 <- findType e2
+                               case t2 of
+                                 Nothing -> return ()
+                                 Just t2' ->
+                                   if Type.assignable Type.one t2' then
+                                     return ()
+                                   else
+                                     err expr ("Subscript type is not numeric with unit 1: " ++ show t2)
+                               case t1 of
+                                 Nothing -> return Nothing
+                                 Just (Arr t1') -> return (Just t1')
+                                 Just (Ptr t1') -> return (Just t1')
+                                 Just _ -> err expr ("Not an array or pointer: " ++ show t1) >> return Nothing
           CCall e1 es _ ->
               do t1 <- findType e1
                  actuals <- mapM findType es
@@ -186,10 +203,14 @@ checkArgs node actuals formals acceptVarArgs =
 instance FindType CConst where
     findType c =
         case c of
-          CIntConst _ _ -> return (Just (Numeric (Just Unit.one)))
+          CIntConst (CInteger i _ f) _ ->
+            if i == 0 && f == noFlags then
+              return (Just Zero)
+            else
+              return (Just (Numeric (Just Unit.one)))
           CCharConst _ _ -> return (Just (Numeric (Just Unit.one)))
           CFloatConst _ _ -> return (Just (Numeric (Just Unit.one)))
-          CStrConst _ _ -> return (Just (Numeric (Just Unit.one)))
+          CStrConst _ _ -> return (Just (Ptr (Numeric (Just Unit.one))))
 
 instance FindType CStat where
     findType stat =
@@ -334,10 +355,10 @@ applyEnumBinding (ident, maybeExpr) =
                             case ty of
                               Nothing -> return ()
                               Just ty' ->
-                                  if ty' /= Numeric (Just Unit.one) then
-                                      err e ("Expected numeric with unit 1, got " ++ show ty)
+                                  if Type.assignable Type.one ty' then
+                                    return ()
                                   else
-                                      return ()
+                                    err e ("Expected numeric with unit 1, got " ++ show ty')
              modifySymTab (SymTab.bindVariable name (Numeric (Just Unit.one)))
 
 instance FindType CTypeQual where
@@ -410,7 +431,7 @@ checkInitializer ty initr =
              if Type.assignable ty' initType' then
                return ()
              else
-               err e ("Can't assign from " ++ show initType' ++ " to " ++ show ty')
+               err e ("Can't assign to " ++ show ty' ++ " from " ++ show initType')
            _ -> return ()
     CInitList initList _ -> checkInitList ty initList
 
@@ -484,7 +505,7 @@ deriveType1 d maybeTy =
       Nothing -> return Nothing
       Just ty ->
           case d of
-            CPtrDeclr _ _ -> return (Just ty)
+            CPtrDeclr _ _ -> return (Just (Ptr ty))
             CArrDeclr _ _ _ -> return (Just ty)
             CFunDeclr (Left _) _ _ ->
               do err d "TODO old-style function declaration"
@@ -533,7 +554,7 @@ applyCFunDef f =
 
              -- save symtab before processing args and body
              outsideScope <- getSymTab
-             modifySymTab (SymTab.bindVariable "__func__" Type.one)
+             modifySymTab (SymTab.bindVariable "__func__" (Type.Ptr Type.one))
              case ty of
                Just (Fun rt args _) ->
                    do modifySymTab (SymTab.setReturnType (Just rt))
