@@ -126,7 +126,7 @@ instance FindType CExpr where
                                           Just ty -> return (Just ty)
           CConst c -> findType c
           CCompoundLit decl initList _ -> err expr "TODO findType CCompoundLit" >> return Nothing
-          CStatExpr stat _ -> err expr "TODO findType CStatExpr" >> return Nothing
+          CStatExpr stat _ -> findType stat
           CLabAddrExpr ident _ -> err expr "TODO findType CLabAddrExpr" >> return Nothing
           CBuiltinExpr builtin -> err expr "TODO findType CBuiltinExpr" >> return Nothing
 
@@ -173,24 +173,24 @@ instance FindType CConst where
 instance FindType CStat where
     findType stat =
         case stat of
-          CLabel _ _ _ _ -> err stat "TODO findType CLabel" >> return Nothing
+          CLabel _ _ _ _ -> err stat "TODO findType CLabel" >> return (Just Void)
           CCase e b _ -> err stat "TODO findType CCase" >> return Nothing
-          CCases e1 e2 b _ -> err stat "TODO findType CCases" >> return Nothing
-          CDefault b _ -> err stat "TODO findType CDefault" >> return Nothing
-          CExpr Nothing _ -> err stat "TODO findType CExpr" >> return Nothing
+          CCases e1 e2 b _ -> err stat "TODO findType CCases" >> return (Just Void)
+          CDefault b _ -> err stat "TODO findType CDefault" >> return (Just Void)
+          CExpr Nothing _ -> err stat "TODO findType CExpr" >> return (Just Void)
           CExpr (Just e) _ -> findType e
           CCompound _ blockItems _ -> blockType blockItems
           CIf e s1 Nothing _ -> do te <- findType e
                                    t1 <- findType s1
-                                   return Nothing
+                                   return (Just Void)
           CIf e s1 (Just s2) _ -> do te <- findType e
                                      t1 <- findType s1
-                                     t1 <- findType s2
-                                     return Nothing
-          CSwitch e b _ -> err stat "TODO findType CSwitch" >> return Nothing
+                                     t2 <- findType s2
+                                     return (Just Void)
+          CSwitch e b _ -> err stat "TODO findType CSwitch" >> return (Just Void)
           CWhile e b _ _ -> do te <- findType e
                                tb <- findType b
-                               return Nothing
+                               return (Just Void)
           CFor init cond incr body _ ->
             do st <- getSymTab
                case init of
@@ -205,11 +205,11 @@ instance FindType CStat where
                  Just incr' -> findType incr' >> return ()
                ty <- findType body
                setSymTab st
-               return ty
-          CGoto _ _ -> err stat "TODO findType CGoto" >> return Nothing
-          CGotoPtr e _ -> err stat "TODO findType CGotoPtr" >> return Nothing
-          CCont _ -> return Nothing
-          CBreak _ -> return Nothing
+               return (Just Void)
+          CGoto _ _ -> err stat "TODO findType CGoto" >> return (Just Void)
+          CGotoPtr e _ -> err stat "TODO findType CGotoPtr" >> return (Just Void)
+          CCont _ -> return (Just Void)
+          CBreak _ -> return (Just Void)
           CReturn e _ ->
               do ty <- case e of
                          Nothing -> return (Just Other)
@@ -218,12 +218,15 @@ instance FindType CStat where
                  case SymTab.returnType st of
                    Nothing -> err stat "Encountered return statement but not sure what return type is expected!"
                    Just r ->
-                       if ty /= Just r then
-                           err stat ("Type " ++ show ty ++ " does not agree with return type " ++ show r)
-                       else
+                     case ty of
+                       Nothing -> return ()
+                       Just ty' ->
+                         if Type.assignable r ty' then
                            return ()
-                 return Nothing
-          CAsm _ _ -> return Nothing
+                         else
+                           err stat ("Type " ++ show ty ++ " does not agree with return type " ++ show r)
+                 return (Just Void)
+          CAsm _ _ -> return (Just Void)
 
 instance FindType CDeclSpec where
     findType declSpec =
