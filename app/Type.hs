@@ -33,12 +33,21 @@ div (Numeric (Just t1)) (Numeric (Just t2)) = Just (Numeric (Just (Unit.div t1 t
 div (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
 div _ _ = Nothing
 
+rem :: Type -> Type -> Maybe Type
+rem = sub
+
 assignable :: Type -> Type -> Bool
 assignable to from =
     -- TODO do this better
     case merge to from of
       Nothing -> False
       Just _ -> True
+
+numeric :: Type -> Bool
+numeric t =
+  case t of
+    Numeric _ -> True
+    _ -> False
 
 merge :: Type -> Type -> Maybe Type
 merge t1 t2 =

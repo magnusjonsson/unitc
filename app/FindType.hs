@@ -27,13 +27,23 @@ instance FindType CExpr where
                  mt2 <- findType e2
                  case (mt1, mt2) of
                    (Just t1, Just t2) ->
-                       case op of
-                         CAssignOp -> if Type.assignable t1 t2 then return (Just t1)
-                                      else do err expr ("Can't assign from " ++ show t2 ++ " to " ++ show t1)
-                                              return Nothing
-                         _ -> do err expr ("TODO findType CAssign " ++ show op)
-                                 return Nothing
-                   _ -> return Nothing
+                     do mt1' <- case op of
+                          CAssignOp -> return mt2
+                          CAddAssOp -> return (Type.add t1 t2)
+                          CSubAssOp -> return (Type.sub t1 t2)
+                          CMulAssOp -> return (Type.mul t1 t2)
+                          CDivAssOp -> return (Type.div t1 t2)
+                          CRmdAssOp -> return (Type.rem t1 t2)
+                          _ -> err expr ("TODO findType CAssign " ++ show op) >> return Nothing
+                        case mt1' of
+                          Nothing -> return ()
+                          Just t1' ->
+                            if Type.assignable t1 t1' then
+                              return ()
+                            else
+                              err expr ("Can't assign to type " ++ show t1 ++ " from type " ++ show t1')
+                   _ -> return ()
+                 return mt1
           CCond e1 (Just e2) e3 _ ->
               do t1 <- findType e1
                  _ <- combineTypes expr "don't match" Type.add t1 (Just Type.one)
@@ -55,7 +65,7 @@ instance FindType CExpr where
                    CSubOp -> combineTypes expr "can't be subtracted" Type.sub t1 t2
                    CMulOp -> combineTypes expr "can't be multiplied" Type.mul t1 t2
                    CDivOp -> combineTypes expr "can't be divided" Type.div t1 t2
-                   CRmdOp -> combineTypes expr "can't be used in remainder operation" Type.add t1 t2
+                   CRmdOp -> combineTypes expr "can't be used in remainder operation" Type.rem t1 t2
                    CShlOp -> do _ <- combineTypes expr "can't be unified" Type.add t2 (Just Type.one); return t1
                    CShrOp -> do _ <- combineTypes expr "can't be unified" Type.add t2 (Just Type.one); return t1
                    COrOp -> combineTypes expr "can't be unified" Type.add t1 t2
