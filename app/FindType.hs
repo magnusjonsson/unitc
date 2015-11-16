@@ -513,7 +513,7 @@ applyCFunDef f =
 
              -- save symtab before processing args and body
              outsideScope <- getSymTab
-
+             modifySymTab (SymTab.bindVariable "__func__" Type.one)
              case ty of
                Just (Fun rt args _) ->
                    do modifySymTab (SymTab.setReturnType (Just rt))
