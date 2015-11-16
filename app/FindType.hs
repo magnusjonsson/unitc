@@ -84,8 +84,9 @@ instance FindType CExpr where
                    CMinOp -> combineTypes expr "can't be multiplied" Type.mul t (Just Type.one)
                    CCompOp -> combineTypes expr "can't be added" Type.mul t (Just Type.one) >> return (Just Type.one)
                    CNegOp -> combineTypes expr "can't be added" Type.mul t (Just Type.one) >> return (Just Type.one)
-          CSizeofExpr e _ -> err expr "TODO findType CSizeofExpr" >> return Nothing
-          CSizeofType decl _ -> err expr "TODO findType CSizeofType" >> return Nothing
+          CSizeofExpr e _ -> do _ <- findType e
+                                return (Just one)
+          CSizeofType decl _ -> return (Just one)
           CAlignofExpr e _ -> err expr "TODO findType CAlignofExpr" >> return Nothing
           CAlignofType decl _ -> err expr "TODO findType CAlignofType" >> return Nothing
           CComplexReal e _ -> err expr "TODO findType CComplexReal" >> return Nothing
