@@ -367,23 +367,63 @@ deriveTypeFromCDeclr declSpecTy (CDeclr _ derivedDeclrs _ attrs _) =
     do attrType <- findType attrs
        deriveType derivedDeclrs (Type.mergeMaybe declSpecTy attrType)
 
+checkInitializer :: Maybe Type -> CInit -> Analysis ()
+checkInitializer ty initr =
+  case initr of
+    CInitExpr e _ ->
+      do initType <- findType e
+         case (ty, initType) of
+           (Just ty', Just initType') ->
+             if Type.assignable ty' initType' then
+               return ()
+             else
+               err e ("Can't assign from " ++ show initType' ++ " to " ++ show ty')
+           _ -> return ()
+    CInitList initList _ -> checkInitList ty initList
+
+checkInitList :: Maybe Type -> CInitList -> Analysis ()
+checkInitList ty initList =
+  forM_ initList $ \(designators, initr) -> checkInitListItem ty designators initr
+
+checkInitListItem :: Maybe Type -> [CDesignator] -> CInit -> Analysis ()
+checkInitListItem ty designators initr =
+  case designators of
+    [] -> err initr "TODO checkInitListItem initializer without designators"
+    _ : _ -> do ty' <- walkType ty designators
+                checkInitializer ty' initr
+
+walkType :: Maybe Type -> [CDesignator] -> Analysis (Maybe Type)
+walkType ty designators =
+  foldM walkType1 ty designators
+
+walkType1 :: Maybe Type -> CDesignator -> Analysis (Maybe Type)
+walkType1 ty designator =
+  case ty of
+    Nothing -> return Nothing
+    Just ty' ->
+      case designator of
+        CMemberDesig (Ident field _ _) _ ->
+          case ty' of
+            Struct tag ->
+              do st <- getSymTab
+                 case SymTab.lookupTag tag st of
+                   Nothing -> err designator ("Struct/union definition not in scope: " ++ tag) >> return Nothing
+                   Just fields ->
+                     case SymTab.lookupField field fields of
+                       Nothing -> err designator ("Struct/union " ++ tag ++ " does not have a field named " ++ field) >> return Nothing
+                       Just ty'' -> return (Just ty'')
+            _ -> err designator ("Type is not a struct/union: " ++ show ty') >> return Nothing
+        CArrDesig e _ -> err designator "TODO walkType1 CArrDesig" >> return Nothing
+        CRangeDesig e1 e2 _ -> err designator "TODO walkType1 CRangeDesig" >> return Nothing
+
 applyTriplet :: Pos a => a -> Maybe Type -> Bool -> Triplet -> Analysis ()
 applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =
     do ty <- case declr of
                Just declr' -> deriveTypeFromCDeclr declSpecTy declr'
                Nothing -> return declSpecTy
        case initr of
-         Just (CInitExpr e _) ->
-             do initType <- findType e
-                case (ty, initType) of
-                  (Just ty', Just initType') ->
-                      if Type.assignable ty' initType' then
-                        return ()
-                      else
-                        err e ("Can't assign from " ++ show initType' ++ " to " ++ show ty')
-                  _ -> return ()
-         Nothing -> return ()
-         _ -> err node ("TODO applyTriplet initr=" ++ show initr)
+         Nothing -> return()
+         Just initr' -> checkInitializer ty initr'
        case declr of
          Just declr' ->
            case declr' of
