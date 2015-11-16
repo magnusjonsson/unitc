@@ -34,7 +34,11 @@ instance FindType CExpr where
                           CMulAssOp -> return (Type.mul t1 t2)
                           CDivAssOp -> return (Type.div t1 t2)
                           CRmdAssOp -> return (Type.rem t1 t2)
-                          _ -> err expr ("TODO findType CAssign " ++ show op) >> return Nothing
+                          CShlAssOp -> return (Type.shl t1 t2)
+                          CShrAssOp -> return (Type.shr t1 t2)
+                          COrAssOp -> return (Type.or t1 t2)
+                          CAndAssOp -> return (Type.and t1 t2)
+                          CXorAssOp -> return (Type.xor t1 t2)
                         case mt1' of
                           Nothing -> return ()
                           Just t1' ->
@@ -66,13 +70,13 @@ instance FindType CExpr where
                    CMulOp -> combineTypes expr "can't be multiplied" Type.mul t1 t2
                    CDivOp -> combineTypes expr "can't be divided" Type.div t1 t2
                    CRmdOp -> combineTypes expr "can't be used in remainder operation" Type.rem t1 t2
-                   CShlOp -> do _ <- combineTypes expr "can't be unified" Type.add t2 (Just Type.one); return t1
-                   CShrOp -> do _ <- combineTypes expr "can't be unified" Type.add t2 (Just Type.one); return t1
-                   COrOp -> combineTypes expr "can't be unified" Type.add t1 t2
-                   CAndOp -> combineTypes expr "can't be unified" Type.add t1 t2
-                   CLorOp -> combineTypes expr "can't be unified" Type.add t1 t2
-                   CLndOp -> combineTypes expr "can't be unified" Type.add t1 t2
-                   CXorOp -> combineTypes expr "can't be unified" Type.add t1 t2
+                   CShlOp -> do _ <- combineTypes expr "can't be unified" Type.shl t2 (Just Type.one); return t1
+                   CShrOp -> do _ <- combineTypes expr "can't be unified" Type.shr t2 (Just Type.one); return t1
+                   COrOp -> combineTypes expr "can't be unified" Type.or t1 t2
+                   CAndOp -> combineTypes expr "can't be unified" Type.and t1 t2
+                   CLorOp -> combineTypes expr "can't be unified" Type.lor t1 t2
+                   CLndOp -> combineTypes expr "can't be unified" Type.land t1 t2
+                   CXorOp -> combineTypes expr "can't be unified" Type.xor t1 t2
           CCast (CDecl specs triplets _) e _ ->
             do td <- findType specs
                te <- findType e

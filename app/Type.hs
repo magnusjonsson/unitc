@@ -1,5 +1,7 @@
 module Type where
 
+import Prelude hiding (and, or)
+
 import Unit
 import Control.Monad
 
@@ -35,6 +37,37 @@ div _ _ = Nothing
 
 rem :: Type -> Type -> Maybe Type
 rem = sub
+
+shl :: Type -> Type -> Maybe Type
+shl t1 t2 =
+  if numeric t1 then
+    case t2 of
+      Numeric (Just u) ->
+       if u == Unit.one then
+         Just t1
+       else
+         Nothing
+      _ -> Nothing
+  else
+    Nothing
+
+shr :: Type -> Type -> Maybe Type
+shr = shl
+
+and :: Type -> Type -> Maybe Type
+and = add
+
+or :: Type -> Type -> Maybe Type
+or = and
+
+land :: Type -> Type -> Maybe Type
+land = and
+
+lor :: Type -> Type -> Maybe Type
+lor = or
+
+xor :: Type -> Type -> Maybe Type
+xor = or
 
 assignable :: Type -> Type -> Bool
 assignable to from =
