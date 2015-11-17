@@ -6,5 +6,16 @@ int main(int argc, char **argv) {
   a = a * b;
   a = a / b;
   a = a % b;
+  a = a | b;
+  a = a & b;
+  a = a || b;
+  a = a && b;
+  a = a ^ b;
+  a = -a;
+  a = +a;
+  a = ~a;
+  a = !a;
+  a++;
+  a--;
   return 0;
 }

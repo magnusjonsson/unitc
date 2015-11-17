@@ -92,6 +92,22 @@ cmp t1 t2 =
     Nothing -> Nothing
     Just t -> Just one
 
+comp :: Type -> Maybe Type
+comp t =
+  case t of
+    Zero -> Just one
+    Numeric (Just u) | u == Unit.one -> Just one
+    _ -> Nothing
+
+neg :: Type -> Maybe Type
+neg t =
+  case t of
+    Zero -> Just one
+    Numeric (Just u) | u == Unit.one -> Just one
+    Ptr _ -> Just one
+    Arr _ -> Just one
+    _ -> Nothing
+
 assignable :: Type -> Type -> Bool
 assignable to from =
     case (to, from) of

@@ -11,5 +11,6 @@ int main(int argc, char **argv) {
   b = x < y;
   b = x >= y;
   b = x <= y;
+  b = !x;
   return 0;
 }

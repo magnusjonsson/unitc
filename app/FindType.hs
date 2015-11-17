@@ -100,10 +100,15 @@ instance FindType CExpr where
                                Nothing -> return Nothing
                                Just (Ptr t') -> return (Just t')
                                Just _ -> err expr ("Can't dereference non-pointer type: " ++ show t) >> return Nothing
-                   CPlusOp -> combineTypes expr "can't be multiplied" Type.mul t (Just Type.one)
-                   CMinOp -> combineTypes expr "can't be multiplied" Type.mul t (Just Type.one)
-                   CCompOp -> combineTypes expr "can't be added" Type.mul t (Just Type.one) >> return (Just Type.one)
-                   CNegOp -> combineTypes expr "can't be added" Type.mul t (Just Type.one) >> return (Just Type.one)
+                   CPlusOp -> combineTypes expr "can't be plus-signed" Type.mul t (Just Type.one)
+                   CMinOp -> combineTypes expr "can't be minus-signed" Type.mul t (Just Type.one)
+                   CCompOp -> combineTypes expr "can't be complemented" Type.xor t (Just Type.one) >> return (Just Type.one)
+                   CNegOp -> case t of
+                               Nothing -> return Nothing
+                               Just t' ->
+                                 case Type.neg t' of
+                                   Nothing -> err expr ("Type can't be logically negated: " ++ show t') >> return Nothing
+                                   Just t'' -> return (Just t'')
           CSizeofExpr e _ -> do _ <- findType e
                                 return (Just one)
           CSizeofType decl _ -> return (Just one)
