@@ -86,6 +86,12 @@ lor = or
 xor :: Type -> Type -> Maybe Type
 xor = or
 
+cmp :: Type -> Type -> Maybe Type
+cmp t1 t2 =
+  case merge t1 t2 of
+    Nothing -> Nothing
+    Just t -> Just one
+
 assignable :: Type -> Type -> Bool
 assignable to from =
     case (to, from) of

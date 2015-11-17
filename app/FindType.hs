@@ -60,12 +60,12 @@ instance FindType CExpr where
               do t1 <- findType e1
                  t2 <- findType e2
                  case op of
-                   CEqOp -> do _ <- combineTypes expr "can't be compared" Type.merge t1 t2; return (Just Type.one)
-                   CNeqOp -> do _ <- combineTypes expr "can't be compared" Type.merge t1 t2; return (Just Type.one)
-                   CLeOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
-                   CGrOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
-                   CLeqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
-                   CGeqOp -> do _ <- combineTypes expr "can't be compared" Type.add t1 t2; return (Just Type.one)
+                   CEqOp -> do _ <- combineTypes expr "can't be compared" Type.cmp t1 t2; return (Just Type.one)
+                   CNeqOp -> do _ <- combineTypes expr "can't be compared" Type.cmp t1 t2; return (Just Type.one)
+                   CLeOp -> do _ <- combineTypes expr "can't be compared" Type.cmp t1 t2; return (Just Type.one)
+                   CGrOp -> do _ <- combineTypes expr "can't be compared" Type.cmp t1 t2; return (Just Type.one)
+                   CLeqOp -> do _ <- combineTypes expr "can't be compared" Type.cmp t1 t2; return (Just Type.one)
+                   CGeqOp -> do _ <- combineTypes expr "can't be compared" Type.cmp t1 t2; return (Just Type.one)
                    CAddOp -> combineTypes expr "can't be added" Type.add t1 t2
                    CSubOp -> combineTypes expr "can't be subtracted" Type.sub t1 t2
                    CMulOp -> combineTypes expr "can't be multiplied" Type.mul t1 t2
@@ -514,7 +514,7 @@ deriveType1 d maybeTy =
       Just ty ->
           case d of
             CPtrDeclr _ _ -> return (Just (Ptr ty))
-            CArrDeclr _ _ _ -> return (Just ty)
+            CArrDeclr _ _ _ -> return (Just (Arr ty))
             CFunDeclr (Left _) _ _ ->
               do err d "TODO old-style function declaration"
                  return Nothing
