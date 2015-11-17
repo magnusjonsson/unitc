@@ -5,7 +5,7 @@ import Prelude hiding (and, or, div)
 import qualified Unit
 import Control.Monad
 
-data Type = Numeric (Maybe Unit.Unit)
+data Type = Numeric (Maybe Unit.Unit) -- Must be (Just _) once fully formed
           | Fun Type [(Maybe String, Type)] Bool -- returnType argNamesAndTypes acceptsVarArgs
           | Struct String
           | Void
@@ -16,6 +16,7 @@ data Type = Numeric (Maybe Unit.Unit)
           | Other
     deriving (Show, Eq)
 
+
 one :: Type
 one = Numeric (Just Unit.one)
 
@@ -23,28 +24,32 @@ add :: Type -> Type -> Maybe Type
 add x Zero = add x one
 add Zero x = add one x
 add (Numeric (Just t1)) (Numeric (Just t2)) | t1 == t2 = Just (Numeric (Just t1))
-add (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
+add (Ptr Void) (Numeric _) = Nothing
+add (Numeric _) (Ptr Void) = Nothing
+add (Ptr t) (Numeric u) = if u == Just Unit.one then Just (Ptr t) else Nothing
+add (Numeric u) (Ptr t) = if u == Just Unit.one then Just (Ptr t) else Nothing
 add _ _ = Nothing
+
 
 sub :: Type -> Type -> Maybe Type
 sub x Zero = sub x one
 sub Zero x = sub one x
 sub (Numeric (Just t1)) (Numeric (Just t2)) | t1 == t2 = Just (Numeric (Just t1))
-sub (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
+sub (Ptr Void) (Numeric _) = Nothing
+sub (Ptr t) (Numeric u) = if u == Just Unit.one then Just (Ptr t) else Nothing
+sub (Ptr t1) (Ptr t2) = if t1 == t2 then Just one else Nothing
 sub _ _ = Nothing
 
 mul :: Type -> Type -> Maybe Type
 mul x Zero = mul x one
 mul Zero x = mul one x
 mul (Numeric (Just t1)) (Numeric (Just t2)) = Just (Numeric (Just (Unit.mul t1 t2)))
-mul (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
 mul _ _ = Nothing
 
 div :: Type -> Type -> Maybe Type
 div x Zero = div x one
 div Zero x = div one x
 div (Numeric (Just t1)) (Numeric (Just t2)) = Just (Numeric (Just (Unit.div t1 t2)))
-div (Numeric Nothing) (Numeric Nothing) = Just (Numeric Nothing)
 div _ _ = Nothing
 
 rem :: Type -> Type -> Maybe Type
