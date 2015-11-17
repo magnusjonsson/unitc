@@ -271,7 +271,7 @@ instance FindType CStat where
           CBreak _ -> return (Just Void)
           CReturn e _ ->
               do ty <- case e of
-                         Nothing -> return (Just Other)
+                         Nothing -> return (Just Void)
                          Just e' -> findType e'
                  st <- getSymTab
                  case SymTab.returnType st of

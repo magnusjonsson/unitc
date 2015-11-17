@@ -30,7 +30,7 @@ main = do
 
 addGccBuiltins :: Analysis ()
 addGccBuiltins =
-    do modifySymTab (SymTab.bindType "__builtin_va_list" Type.Other)
+    do modifySymTab (SymTab.bindType "__builtin_va_list" Type.VaList)
        modifySymTab (SymTab.bindVariable "__builtin_bswap32" (Type.Fun Type.one [(Nothing, Type.one)] False))
        modifySymTab (SymTab.bindVariable "__builtin_bswap64" (Type.Fun Type.one [(Nothing, Type.one)] False))
        modifySymTab (SymTab.bindVariable "__builtin_constant_p" (Type.Fun Type.one [(Nothing, Type.Any)] False))

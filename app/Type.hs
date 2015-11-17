@@ -13,7 +13,7 @@ data Type = Numeric (Maybe Unit.Unit) -- Must be (Just _) once fully formed
           | Zero
           | Ptr Type
           | Arr Type
-          | Other
+          | VaList
     deriving (Show, Eq)
 
 
@@ -135,7 +135,7 @@ merge t1 t2 =
              guard (d1 == d2)
              return (Fun r a d1)
       (Struct n1, Struct n2) -> if n1 == n2 then Just t1 else Nothing
-      (Other, Other) -> Just Other
+      (VaList, VaList) -> Just VaList
       (Ptr t1', Ptr t2') -> do t' <- merge t1' t2'; return (Ptr t')
       (Arr t1', Arr t2') -> do t' <- merge t1' t2'; return (Arr t')
       _ -> Nothing
