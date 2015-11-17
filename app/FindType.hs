@@ -136,21 +136,29 @@ instance FindType CExpr where
                    Just _ ->
                        do err expr ("Non-function called as a function: " ++ show (pretty e1))
                           return Nothing
-          CMember e (Ident field _ _) _ _ -> do ty <- findType e
-                                                st <- getSymTab
-                                                case ty of
-                                                  Nothing -> return Nothing
-                                                  Just (Struct tag) ->
-                                                      case SymTab.lookupTag tag st of
-                                                        Nothing -> do err expr ("Could not find struct tag " ++ tag ++ " in symbol table")
-                                                                      return Nothing
-                                                        Just fields ->
-                                                            case SymTab.lookupField field fields of
-                                                              Nothing -> do err expr ("No such field " ++ field ++ " in tag " ++ tag)
-                                                                            return Nothing
-                                                              Just ty -> return (Just ty)
-                                                  _ -> do err expr "Can't get field of non-struct"
-                                                          return Nothing
+          CMember e (Ident field _ _) deref _ ->
+            do ty <- findType e
+               st <- getSymTab
+               ty' <- if deref then
+                        case ty of
+                          Nothing -> return Nothing
+                          Just (Ptr t) -> return (Just t)
+                          Just t -> err expr ("Can't dereference non-reference type " ++ show t) >> return Nothing
+                      else
+                        return ty
+               case ty' of
+                 Nothing -> return Nothing
+                 Just (Struct tag) ->
+                   case SymTab.lookupTag tag st of
+                     Nothing -> do err expr ("Could not find struct/union tag " ++ tag ++ " in symbol table")
+                                   return Nothing
+                     Just fields ->
+                       case SymTab.lookupField field fields of
+                         Nothing -> do err expr ("No such field " ++ field ++ " in tag " ++ tag)
+                                       return Nothing
+                         Just ty'' -> return (Just ty'')
+                 _ -> do err expr ("Can't get field " ++ field ++ " of non-struct type " ++ show ty')
+                         return Nothing
           CVar (Ident name _ _) _ -> do st <- getSymTab
                                         case SymTab.lookupVariable name st of
                                           Nothing -> do err expr ("Variable not in scope: " ++ name)
