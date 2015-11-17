@@ -5,10 +5,11 @@ unitc="stack exec unitc"
 
 for f in doc/examples/good*.c; do
   echo -n $f:
-  if $unitc $f; then
+  if OUTPUT=$($unitc $f 2>&1); then
     echo OK
   else
     echo FAIL
+    echo -n "$OUTPUT"
     exitcode=1
   fi
 done
