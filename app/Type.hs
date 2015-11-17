@@ -95,9 +95,6 @@ cmp t1 t2 =
 assignable :: Type -> Type -> Bool
 assignable to from =
     case (to, from) of
-    -- Some special cases
-    -- Generic merge
-    -- TODO do this better
     _ -> case merge to from of
           Nothing -> False
           Just _ -> True
@@ -115,7 +112,9 @@ merge t1 t2 =
       (Any, _) -> Just t2
       (_, Any) -> Just t1
       (Void, Void) -> Just Void
-      (Ptr Void, Zero) -> Just (Ptr Void)
+      (Zero, Zero) -> Just Zero
+      (Ptr t, Zero) -> Just t1
+      (Zero, Ptr t) -> Just t2
       (Ptr Void, Ptr _) -> Just t2
       (Ptr _, Ptr Void) -> Just t1
       (Numeric Nothing, Zero) -> Just t1
