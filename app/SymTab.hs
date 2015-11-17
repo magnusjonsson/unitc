@@ -24,9 +24,15 @@ empty =
            parent = Nothing
          }
 
-newScope :: SymTab -> SymTab
-newScope p =
-    empty { parent = (Just p) }
+openScope :: SymTab -> SymTab
+openScope p =
+    empty { parent = (Just p), returnType = returnType p }
+
+closeScope :: SymTab -> SymTab
+closeScope p =
+  case parent p of
+    Just p' -> p
+    Nothing -> error "Unbalanced openScope/closeScope"
 
 lookupVariable :: String -> SymTab -> Maybe Type
 lookupVariable name symtab =
@@ -65,7 +71,9 @@ lookupTag name symtab =
 
 bindTag :: String -> Fields -> SymTab -> SymTab
 bindTag name fields st =
-    st { tags = Map.insert name fields (tags st) }
+    case parent st of
+      Nothing -> st { tags = Map.insert name fields (tags st) }
+      Just st' -> st { parent = Just (bindTag name fields st') }
 
 lookupField :: String -> Fields -> Maybe Type
 lookupField = Map.lookup

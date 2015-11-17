@@ -161,7 +161,7 @@ instance FindType CExpr where
                         case ty of
                           Nothing -> return Nothing
                           Just (Ptr t) -> return (Just t)
-                          Just t -> err expr ("Can't dereference non-reference type " ++ show t) >> return Nothing
+                          Just t -> err expr ("Not a pointer: " ++ show t) >> return Nothing
                       else
                         return ty
                case ty' of
@@ -276,7 +276,7 @@ instance FindType CStat where
                                tb <- findType b
                                return (Just Void)
           CFor init cond incr body _ ->
-            do st <- getSymTab
+            do modifySymTab SymTab.openScope
                case init of
                  Left Nothing -> return ()
                  Left (Just expr) -> findType expr >> return ()
@@ -288,7 +288,7 @@ instance FindType CStat where
                  Nothing -> return ()
                  Just incr' -> findType incr' >> return ()
                ty <- findType body
-               setSymTab st
+               modifySymTab SymTab.closeScope
                return (Just Void)
           CGoto _ _ -> err stat "TODO findType CGoto" >> return (Just Void)
           CGotoPtr e _ -> err stat "TODO findType CGotoPtr" >> return (Just Void)
@@ -361,11 +361,11 @@ instance FindType CStructUnion where
            case csu of
              CStruct _ _ Nothing _ _ -> return ()
              CStruct _ _ (Just fields) _ _ ->
-                 do parent <- getSymTab
-                    setSymTab (SymTab.newScope parent)
+                 do modifySymTab SymTab.openScope
                     mapM_ applyCDecl fields
                     fieldSymTab <- getSymTab
-                    setSymTab (SymTab.bindTag name (SymTab.variables fieldSymTab) parent)
+                    modifySymTab (SymTab.bindTag name (SymTab.variables fieldSymTab))
+                    modifySymTab SymTab.closeScope
            return (Just (Struct name))
 
 instance FindType CEnum where
@@ -417,9 +417,9 @@ instance FindType a => FindType [a] where
 
 blockType :: [CBlockItem] -> Analysis (Maybe Type)
 blockType items =
-    do st <- getSymTab
+    do modifySymTab SymTab.openScope
        types <- mapM applyBlockItem items
-       setSymTab st
+       modifySymTab SymTab.closeScope
        case types of
          [] -> return Nothing
          _ -> return (last types)
@@ -586,7 +586,7 @@ applyCFunDef f =
                (_, Nothing) -> err f "Could not determine function type"
 
              -- save symtab before processing args and body
-             outsideScope <- getSymTab
+             modifySymTab SymTab.openScope
              modifySymTab (SymTab.bindVariable "__func__" (Type.Ptr Type.one))
              case ty of
                Just (Fun rt args _) ->
@@ -599,4 +599,4 @@ applyCFunDef f =
 
              _ <- findType body
 
-             setSymTab outsideScope
+             modifySymTab SymTab.closeScope
