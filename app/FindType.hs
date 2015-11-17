@@ -54,7 +54,16 @@ instance FindType CExpr where
                  _ <- combineTypes expr "don't match" Type.add t1 (Just Type.one)
                  t2 <- findType e2
                  t3 <- findType e3
-                 combineTypes expr "must have same unit" Type.merge t2 t3
+                 case (t2, t3) of
+                   (Nothing, _) -> return Nothing
+                   (_, Nothing) -> return Nothing
+                   (Just t2', Just t3') ->
+                     if Type.assignable t2' t3' then
+                       return t2
+                     else if Type.assignable t3' t2' then
+                       return t3
+                     else
+                       err expr ("Types don't match: " ++ show t2' ++ " and " ++ show t3') >> return Nothing
           CCond e1 Nothing e3 _ -> err expr "TODO findType CCond" >> return Nothing
           CBinary op e1 e2 _ ->
               do t1 <- findType e1
@@ -99,6 +108,7 @@ instance FindType CExpr where
                    CIndOp -> case t of
                                Nothing -> return Nothing
                                Just (Ptr t') -> return (Just t')
+                               Just (Fun _ _ _) -> return t
                                Just _ -> err expr ("Can't dereference non-pointer type: " ++ show t) >> return Nothing
                    CPlusOp -> combineTypes expr "can't be plus-signed" Type.mul t (Just Type.one)
                    CMinOp -> combineTypes expr "can't be minus-signed" Type.mul t (Just Type.one)
@@ -136,6 +146,9 @@ instance FindType CExpr where
                  case t1 of
                    Nothing -> return Nothing
                    Just (Fun rt formals acceptsVarArgs) ->
+                       do checkArgs (nodeInfo expr) actuals formals acceptsVarArgs
+                          return (Just rt)
+                   Just (Ptr (Fun rt formals acceptsVarArgs)) ->
                        do checkArgs (nodeInfo expr) actuals formals acceptsVarArgs
                           return (Just rt)
                    Just _ ->
