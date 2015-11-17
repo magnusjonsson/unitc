@@ -1,3 +1,4 @@
+struct point { int x; int y; };
 int main(int argc, char **argv) {
   __builtin_va_list va_list;
   int a;
@@ -9,5 +10,6 @@ int main(int argc, char **argv) {
   a = __builtin_expect(1, a);
   a = __builtin_strlen("string");
   a = __builtin_strcmp("string1", "string2");
+  a = __builtin_offsetof(struct point, y);
   return a;
 }

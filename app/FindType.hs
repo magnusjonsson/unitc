@@ -192,7 +192,14 @@ instance FindType CExpr where
                return tspecs
           CStatExpr stat _ -> findType stat
           CLabAddrExpr ident _ -> err expr "TODO findType CLabAddrExpr" >> return Nothing
-          CBuiltinExpr builtin -> err expr "TODO findType CBuiltinExpr" >> return Nothing
+          CBuiltinExpr builtin -> findType builtin
+
+instance FindType CBuiltin where
+  findType builtin =
+    case builtin of
+      CBuiltinVaArg e d _ -> err builtin "FindType CBuiltinVaArg" >> return Nothing
+      CBuiltinOffsetOf _ _ _ -> return (Just Type.one)
+      CBuiltinTypesCompatible decl1 decl2 _ -> err builtin "FindType CBuiltinTypesCompatible" >> return Nothing
 
 combineTypes :: Pos a => a -> String -> (Type -> Type -> Maybe Type) -> Maybe Type -> Maybe Type -> Analysis (Maybe Type)
 combineTypes pos msg f t1 t2 =
