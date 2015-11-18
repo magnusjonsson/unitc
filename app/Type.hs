@@ -111,7 +111,7 @@ neg t =
 assignable :: Type -> Type -> Bool
 assignable to from =
   case (to, from) of
-    (Ptr (Fun _ _ _), Fun _ _ _) | to == Ptr from -> True
+    (Ptr (Fun _ _ _), Fun _ _ _) -> assignable to (Ptr from)
     _ -> case merge to from of
           Nothing -> False
           Just _ -> True

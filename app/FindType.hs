@@ -217,10 +217,10 @@ checkArgs node actuals formals acceptVarArgs =
       (Nothing : as, f : fs, _) ->
           checkArgs node as fs acceptVarArgs
       (Just a : as, (fname, ftype) : fs, _) ->
-          do if not (Type.assignable ftype a) then
-                 err node ("Argument type mismatch. Found " ++ show a ++ ", expected " ++ show ftype ++ ".")
+          do if Type.assignable ftype a then
+               return ()
              else
-                 return ()
+               err node ("Argument type mismatch. Found " ++ show a ++ ", expected " ++ show ftype ++ ".")
              checkArgs node as fs acceptVarArgs
 
 instance FindType CConst where
