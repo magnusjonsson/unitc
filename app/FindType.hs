@@ -419,9 +419,9 @@ applyBlockItem item =
     case item of
       CBlockStmt stmt -> findType stmt
       CBlockDecl decl -> do applyCDecl decl
-                            return Nothing
-      CNestedFunDef f -> do err f "TODO findType CNestedFunDef"
-                            return Nothing
+                            return (Just Void)
+      CNestedFunDef f -> do applyCFunDef f
+                            return (Just Void)
 
 applyCDecl :: CDecl -> Analysis ()
 applyCDecl decl =
