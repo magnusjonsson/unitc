@@ -156,7 +156,6 @@ instance FindType CExpr where
                           return Nothing
           CMember e (Ident field _ _) deref _ ->
             do ty <- findType e
-               st <- getSymTab
                ty' <- if deref then
                         case ty of
                           Nothing -> return Nothing
@@ -164,19 +163,10 @@ instance FindType CExpr where
                           Just t -> err expr ("Not a pointer: " ++ show t) >> return Nothing
                       else
                         return ty
-               case ty' of
+               fieldinfo <- getField expr ty' field
+               case fieldinfo of
                  Nothing -> return Nothing
-                 Just (Struct tag) ->
-                   case SymTab.lookupTag tag st of
-                     Nothing -> do err expr ("Could not find struct/union tag " ++ tag ++ " in symbol table")
-                                   return Nothing
-                     Just fields ->
-                       case SymTab.lookupField field fields of
-                         Nothing -> do err expr ("No such field " ++ field ++ " in tag " ++ tag)
-                                       return Nothing
-                         Just ty'' -> return (Just ty'')
-                 _ -> do err expr ("Can't get field " ++ field ++ " of non-struct type " ++ show ty')
-                         return Nothing
+                 Just (index, ty'') -> return (Just ty'')
           CVar (Ident name _ _) _ -> do st <- getSymTab
                                         case SymTab.lookupVariable name st of
                                           Nothing -> do err expr ("Variable not in scope: " ++ name)
@@ -188,7 +178,7 @@ instance FindType CExpr where
                case triplets of
                  [] -> return ()
                  _ -> err expr "TODO CCompoundLit with triplets"
-               checkInitList tspecs initList
+               checkInitList tspecs (Just 0) initList
                return tspecs
           CStatExpr stat _ -> findType stat
           CLabAddrExpr ident _ -> err expr "TODO findType CLabAddrExpr" >> return Nothing
@@ -364,7 +354,7 @@ instance FindType CStructUnion where
                  do modifySymTab SymTab.openScope
                     mapM_ applyCDecl fields
                     fieldSymTab <- getSymTab
-                    modifySymTab (SymTab.bindTag name (SymTab.variables fieldSymTab))
+                    modifySymTab (SymTab.bindTag name (reverse (SymTab.variablesRevList fieldSymTab)))
                     modifySymTab SymTab.closeScope
            return (Just (Struct name))
 
@@ -464,44 +454,78 @@ checkInitializer ty initr =
              if Type.assignable ty' initType' then
                return ()
              else
-               err e ("Can't assign to " ++ show ty' ++ " from " ++ show initType')
+               err e ("Can't initialize " ++ show ty' ++ " using " ++ show initType')
            _ -> return ()
-    CInitList initList _ -> checkInitList ty initList
+    CInitList initList _ -> checkInitList ty (Just 0) initList
 
-checkInitList :: Maybe Type -> CInitList -> Analysis ()
-checkInitList ty initList =
-  forM_ initList $ \(designators, initr) -> checkInitListItem ty designators initr
+checkInitList :: Maybe Type -> Maybe Int -> CInitList -> Analysis ()
+checkInitList ty defaultIndex initList =
+  case initList of
+    [] -> return ()
+    (designators, initr) : rest ->
+      do defaultIndex' <- checkInitListItem ty defaultIndex designators initr
+         checkInitList ty defaultIndex' rest
 
-checkInitListItem :: Maybe Type -> [CDesignator] -> CInit -> Analysis ()
-checkInitListItem ty designators initr =
+checkInitListItem :: Maybe Type -> Maybe Int -> [CDesignator] -> CInit -> Analysis (Maybe Int)
+checkInitListItem ty defaultIndex designators initr =
   case designators of
-    [] -> err initr "TODO checkInitListItem initializer without designators"
-    _ : _ -> do ty' <- walkType ty designators
-                checkInitializer ty' initr
+    [] -> do ty' <- getIndex initr ty defaultIndex
+             checkInitializer ty' initr
+             return (fmap (+1) defaultIndex)
+    first : rest ->
+      case first of
+        CMemberDesig (Ident field _ _) pos ->
+          do member <- getField pos ty field
+             case member of
+               Nothing -> return Nothing
+               Just (fieldindex, fieldty) ->
+                 do case rest of
+                      [] -> checkInitializer (Just fieldty) initr
+                      _ -> do _ <- checkInitListItem (Just fieldty) (Just 0) rest initr
+                              return ()
+                    return (Just (fieldindex + 1))
+        CArrDesig index pos ->
+          do fieldty <- getIndex pos ty defaultIndex
+             case rest of
+               [] -> checkInitializer fieldty initr
+               _ -> do _ <- checkInitListItem fieldty (Just 0) rest initr
+                       return ()
+             return (fmap (+1) defaultIndex)
+        CRangeDesig _ _ pos -> err pos "TODO checkInitListItem CRangeDesig" >> return Nothing
 
-walkType :: Maybe Type -> [CDesignator] -> Analysis (Maybe Type)
-walkType ty designators =
-  foldM walkType1 ty designators
+getField :: Pos a => a -> Maybe Type -> String -> Analysis (Maybe (Int, Type))
+getField pos ty field =
+  case ty of
+    Nothing -> return Nothing
+    Just (Struct tag) ->
+      do st <- getSymTab
+         case SymTab.lookupTag tag st of
+           Nothing -> err pos ("Struct/union tag not in scope: " ++ tag) >> return Nothing
+           Just fields ->
+             case SymTab.lookupFieldByName field fields of
+               Nothing -> err pos ("No such memberin struct/enum" ++ show tag ++ ": " ++ field) >> return Nothing
+               Just field -> return (Just field)
+    Just ty' -> err pos ("Not a struct/union " ++ show ty') >> return Nothing
 
-walkType1 :: Maybe Type -> CDesignator -> Analysis (Maybe Type)
-walkType1 ty designator =
+getIndex :: Pos a => a -> Maybe Type -> Maybe Int -> Analysis (Maybe Type)
+getIndex pos ty i =
   case ty of
     Nothing -> return Nothing
     Just ty' ->
-      case designator of
-        CMemberDesig (Ident field _ _) _ ->
-          case ty' of
-            Struct tag ->
+      case ty' of
+        Arr ty'' -> return (Just ty'')
+        Struct tag ->
+          case i of
+            Nothing -> err pos "Not clear which member is being referred to" >> return Nothing
+            Just i' ->
               do st <- getSymTab
                  case SymTab.lookupTag tag st of
-                   Nothing -> err designator ("Struct/union definition not in scope: " ++ tag) >> return Nothing
+                   Nothing -> err pos ("Struct/union tag not in scope: " ++ tag) >> return Nothing
                    Just fields ->
-                     case SymTab.lookupField field fields of
-                       Nothing -> err designator ("Struct/union " ++ tag ++ " does not have a field named " ++ field) >> return Nothing
-                       Just ty'' -> return (Just ty'')
-            _ -> err designator ("Type is not a struct/union: " ++ show ty') >> return Nothing
-        CArrDesig e _ -> err designator "TODO walkType1 CArrDesig" >> return Nothing
-        CRangeDesig e1 e2 _ -> err designator "TODO walkType1 CRangeDesig" >> return Nothing
+                     case SymTab.lookupFieldByIndex i' fields of
+                       Nothing -> return Nothing
+                       Just (_, fieldty) -> return (Just fieldty)
+        _ -> err pos ("Not an array/struct/union: " ++ show ty') >> return Nothing
 
 applyTriplet :: Pos a => a -> Maybe Type -> Bool -> Triplet -> Analysis ()
 applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =

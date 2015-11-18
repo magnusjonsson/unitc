@@ -5,10 +5,11 @@ import qualified Data.Map as Map
 import Data.List as List
 import Control.Monad (mplus)
 
-type Fields = Map.Map String Type
+type Fields = [(String, Type)]
 
 data SymTab = SymTab {
       variables :: Map.Map String Type,
+      variablesRevList :: [(String, Type)],
       returnType :: Maybe Type,
       types :: Map.Map String Type,
       tags :: Map.Map String Fields,
@@ -18,6 +19,7 @@ data SymTab = SymTab {
 empty :: SymTab
 empty =
   SymTab { variables = Map.empty,
+           variablesRevList = [],
            returnType = Nothing,
            types = Map.empty,
            tags = Map.empty,
@@ -43,7 +45,8 @@ lookupVariable name symtab =
 
 bindVariable :: String -> Type -> SymTab -> SymTab
 bindVariable name ty st =
-    st { variables = Map.insert name ty (variables st) }
+    st { variables = Map.insert name ty (variables st),
+         variablesRevList = (name, ty) : variablesRevList st }
 
 bindVariables :: [(String, Type)] -> SymTab -> SymTab
 bindVariables pairs st =
@@ -75,5 +78,14 @@ bindTag name fields st =
       Nothing -> st { tags = Map.insert name fields (tags st) }
       Just st' -> st { parent = Just (bindTag name fields st') }
 
-lookupField :: String -> Fields -> Maybe Type
-lookupField = Map.lookup
+lookupFieldByName :: String -> Fields -> Maybe (Int, Type)
+lookupFieldByName name fields =
+  case elemIndex name (map fst fields) of
+    Nothing -> Nothing
+    Just i -> Just (i, snd (fields !! i))
+
+lookupFieldByIndex :: Int -> Fields -> Maybe (String, Type)
+lookupFieldByIndex i fields =
+  case drop i fields of
+    [] -> Nothing
+    (name,ty) : _ -> Just (name, ty)
