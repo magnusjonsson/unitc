@@ -242,7 +242,7 @@ instance FindType CStat where
           CCase e b _ -> return (Just Void)
           CCases e1 e2 b _ -> return (Just Void)
           CDefault b _ -> return (Just Void)
-          CExpr Nothing _ -> err stat "TODO findType CExpr" >> return (Just Void)
+          CExpr Nothing _ -> return (Just Void)
           CExpr (Just e) _ -> findType e
           CCompound _ blockItems _ -> blockType blockItems
           CIf e s1 Nothing _ -> do te <- findType e
@@ -503,7 +503,7 @@ getField pos ty field =
            Nothing -> err pos ("Struct/union tag not in scope: " ++ tag) >> return Nothing
            Just fields ->
              case SymTab.lookupFieldByName field fields of
-               Nothing -> err pos ("No such memberin struct/enum" ++ show tag ++ ": " ++ field) >> return Nothing
+               Nothing -> err pos ("No such member in struct/union " ++ tag ++ ": " ++ field ++ ". Available fields: " ++ show fields) >> return Nothing
                Just field -> return (Just field)
     Just ty' -> err pos ("Not a struct/union " ++ show ty') >> return Nothing
 
@@ -547,7 +547,7 @@ applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =
                       modifySymTab (SymTab.bindVariable name ty')
                 Nothing -> err declr' ("Could not infer type for " ++ name)
              _ -> err node ("Unhandled CDeclr: " ++ show declr)
-         Nothing -> return () -- happens in /usr/include/bits/waitstatus.h
+         Nothing -> return ()
 
 deriveType :: [CDerivedDeclr] -> Maybe Type -> Analysis (Maybe Type)
 deriveType ds ty =

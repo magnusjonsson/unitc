@@ -33,7 +33,7 @@ openScope p =
 closeScope :: SymTab -> SymTab
 closeScope p =
   case parent p of
-    Just p' -> p
+    Just p' -> p'
     Nothing -> error "Unbalanced openScope/closeScope"
 
 lookupVariable :: String -> SymTab -> Maybe Type

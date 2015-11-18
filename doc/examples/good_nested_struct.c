@@ -1,9 +1,11 @@
 struct x {
+  int a;
   struct y {
-    int a;
-  } b;
-} c;
+    int b;
+  } c;
+  int d;
+} e;
 
 int main(int argc, char **argv) {
-  return c.b.a;
+  return e.a + e.c.b + e.d;
 }
