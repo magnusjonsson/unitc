@@ -233,7 +233,7 @@ instance FindType CConst where
               return (Just (Numeric (Just Unit.one)))
           CCharConst _ _ -> return (Just (Numeric (Just Unit.one)))
           CFloatConst _ _ -> return (Just (Numeric (Just Unit.one)))
-          CStrConst _ _ -> return (Just (Ptr (Numeric (Just Unit.one))))
+          CStrConst _ _ -> return (Just (Arr (Numeric (Just Unit.one))))
 
 instance FindType CStat where
     findType stat =

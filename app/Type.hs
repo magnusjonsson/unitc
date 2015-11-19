@@ -4,6 +4,7 @@ import Prelude hiding (and, or, div)
 
 import qualified Unit
 import Control.Monad
+import Data.Maybe (isJust)
 
 data Type = Numeric (Maybe Unit.Unit) -- Must be (Just _) once fully formed
           | Fun Type [(Maybe String, Type)] Bool -- returnType argNamesAndTypes acceptsVarArgs
@@ -112,9 +113,8 @@ assignable :: Type -> Type -> Bool
 assignable to from =
   case (to, from) of
     (Ptr (Fun _ _ _), Fun _ _ _) -> assignable to (Ptr from)
-    _ -> case merge to from of
-          Nothing -> False
-          Just _ -> True
+    (Ptr to', Arr from') -> isJust (merge to' from')
+    _ -> isJust (merge to from)
 
 numeric :: Type -> Bool
 numeric t =
