@@ -38,6 +38,8 @@ addGccBuiltins =
        modifySymTab (SymTab.bindVariable "__builtin_expect" (Type.Fun Type.one [(Nothing, Type.one), (Nothing, Type.one)] False))
        modifySymTab (SymTab.bindVariable "__builtin_strlen" (Type.Fun Type.one [(Nothing, Type.Ptr Type.one)] False))
        modifySymTab (SymTab.bindVariable "__builtin_strcmp" (Type.Fun Type.one [(Nothing, Type.Ptr Type.one), (Nothing, Type.Ptr Type.one)] False))
+       modifySymTab (SymTab.bindVariable "__builtin_va_start" (Type.Fun Type.Void [(Nothing, Type.VaList), (Nothing, Type.Any)] False))
+       modifySymTab (SymTab.bindVariable "__builtin_va_end" (Type.Fun Type.Void [(Nothing, Type.VaList)] False))
 
 printError :: Err -> IO ()
 printError (Err pos msg) =
