@@ -116,6 +116,7 @@ assignable :: Type -> Type -> Bool
 assignable to from =
   case (to, from) of
     (Ptr (Fun _ _ _), Fun _ _ _) -> assignable to (Ptr from)
+    (Ptr Void, Arr from') -> True
     (Ptr to', Arr from') -> isJust (merge to' from')
     _ -> isJust (merge to from)
 
