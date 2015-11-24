@@ -20,5 +20,12 @@ int main(int argc, char **argv) {
   b = x && z;
   b = x || y;
   b = !x;
+
+  // void pointer arithmetic, disallwed by the standard, allowed by gcc
+  void *v;
+  v = v + 1;
+  v = 1 + v;
+  v = v - 1;
+
   return 0;
 }

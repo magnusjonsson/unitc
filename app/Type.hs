@@ -25,8 +25,8 @@ add :: Type -> Type -> Maybe Type
 add x Zero = add x one
 add Zero x = add one x
 add (Numeric (Just t1)) (Numeric (Just t2)) | t1 == t2 = Just (Numeric (Just t1))
-add (Ptr Void) (Numeric _) = Nothing
-add (Numeric _) (Ptr Void) = Nothing
+--add (Ptr Void) (Numeric _) = Nothing -- disallowed by the standard, but allowed by gcc
+--add (Numeric _) (Ptr Void) = Nothing -- disallowed by the standard, but allowed by gcc
 add (Arr t) (Numeric u) = if u == Just Unit.one then Just (Ptr t) else Nothing
 add (Ptr t) (Numeric u) = if u == Just Unit.one then Just (Ptr t) else Nothing
 add (Numeric u) (Arr t) = if u == Just Unit.one then Just (Ptr t) else Nothing
@@ -38,7 +38,7 @@ sub :: Type -> Type -> Maybe Type
 sub x Zero = sub x one
 sub Zero x = sub one x
 sub (Numeric (Just t1)) (Numeric (Just t2)) | t1 == t2 = Just (Numeric (Just t1))
-sub (Ptr Void) (Numeric _) = Nothing
+--sub (Ptr Void) (Numeric _) = Nothing -- disallowed by the standard, but allwed by gcc
 sub (Arr t) (Numeric u) = if u == Just Unit.one then Just (Ptr t) else Nothing
 sub (Ptr t) (Numeric u) = if u == Just Unit.one then Just (Ptr t) else Nothing
 sub (Ptr t1) (Ptr t2) = if t1 == t2 then Just one else Nothing
