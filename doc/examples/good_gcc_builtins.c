@@ -16,6 +16,10 @@ int main(int argc, char **argv) {
   a = __builtin_strlen("string");
   a = __builtin_strcmp("string1", "string2");
   a = __builtin_offsetof(struct point, y);
+  char c[100];
+  b = __builtin_strcpy(c, "a");
+  b = __builtin_strncpy(c, "a", 1);
+  a = __builtin_ctzl(a);
   varargsfn(0);
   return a;
 }
