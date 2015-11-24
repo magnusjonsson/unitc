@@ -428,7 +428,8 @@ applyCDecl decl =
     case decl of
       CDecl declSpecs triplets _ ->
           do ty <- findType declSpecs
-             mapM_ (applyTriplet decl ty (isTypeDef declSpecs)) triplets
+             typeInitPairs <- mapM (applyTriplet decl ty (isTypeDef declSpecs)) triplets
+             mapM_ (initTriplet decl) typeInitPairs
 
 type Triplet = (Maybe CDeclr, Maybe CInit, Maybe CExpr)
                            
@@ -527,14 +528,11 @@ getIndex pos ty i =
                        Just (_, fieldty) -> return (Just fieldty)
         _ -> err pos ("Not an array/struct/union: " ++ show ty') >> return Nothing
 
-applyTriplet :: Pos a => a -> Maybe Type -> Bool -> Triplet -> Analysis ()
-applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =
+applyTriplet :: Pos a => a -> Maybe Type -> Bool -> Triplet -> Analysis (Maybe Type, Maybe CInit)
+applyTriplet pos declSpecTy isTypeDef (declr, initr, bitFieldSize) =
     do ty <- case declr of
                Just declr' -> deriveTypeFromCDeclr declSpecTy declr'
                Nothing -> return declSpecTy
-       case initr of
-         Nothing -> return()
-         Just initr' -> checkInitializer ty initr'
        case declr of
          Just declr' ->
            case declr' of
@@ -546,8 +544,15 @@ applyTriplet node declSpecTy isTypeDef (declr, initr, bitFieldSize) =
                   else
                       modifySymTab (SymTab.bindVariable name ty')
                 Nothing -> err declr' ("Could not infer type for " ++ name)
-             _ -> err node ("Unhandled CDeclr: " ++ show declr)
+             _ -> err pos ("Unhandled CDeclr: " ++ show declr)
          Nothing -> return ()
+       return (ty, initr)
+
+initTriplet :: Pos a => a -> (Maybe Type, Maybe CInit) -> Analysis ()
+initTriplet pos (ty, initr) =
+  case initr of
+    Nothing -> return()
+    Just initr' -> checkInitializer ty initr'
 
 deriveType :: [CDerivedDeclr] -> Maybe Type -> Analysis (Maybe Type)
 deriveType ds ty =
