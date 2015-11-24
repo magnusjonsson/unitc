@@ -107,9 +107,10 @@ instance FindType CExpr where
                                Just t' -> return (Just (Ptr t'))
                    CIndOp -> case t of
                                Nothing -> return Nothing
-                               Just (Ptr t') -> return (Just t')
-                               Just (Fun _ _ _) -> return t
-                               Just _ -> err expr ("Can't dereference non-pointer type: " ++ show t) >> return Nothing
+                               Just t' ->
+                                 case Type.deref t' of
+                                   Nothing -> err expr ("Can't dereference non-pointer type: " ++ show t) >> return Nothing
+                                   Just t'' -> return (Just t'')
                    CPlusOp -> combineTypes expr "can't be plus-signed" Type.mul t (Just Type.one)
                    CMinOp -> combineTypes expr "can't be minus-signed" Type.mul t (Just Type.one)
                    CCompOp -> combineTypes expr "can't be complemented" Type.xor t (Just Type.one) >> return (Just Type.one)

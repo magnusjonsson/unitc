@@ -137,6 +137,14 @@ booleanable t =
     Arr _ -> True
     VaList -> False
 
+deref :: Type -> Maybe Type
+deref t =
+  case t of
+    Ptr t' -> Just t'
+    Arr t' -> Just t'
+    Fun _ _ _ -> return t
+    _ -> Nothing
+
 numeric :: Type -> Bool
 numeric t =
   case t of
