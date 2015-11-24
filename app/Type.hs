@@ -81,14 +81,18 @@ and = add
 or :: Type -> Type -> Maybe Type
 or = and
 
-land :: Type -> Type -> Maybe Type
-land = and
-
-lor :: Type -> Type -> Maybe Type
-lor = or
-
 xor :: Type -> Type -> Maybe Type
 xor = or
+
+land :: Type -> Type -> Maybe Type
+land t1 t2 =
+  if booleanable t1 && booleanable t2 then
+    Just one
+  else
+    Nothing
+
+lor :: Type -> Type -> Maybe Type
+lor = land
 
 cmp :: Type -> Type -> Maybe Type
 cmp t1 t2 =
@@ -119,6 +123,19 @@ assignable to from =
     (Ptr Void, Arr from') -> True
     (Ptr to', Arr from') -> isJust (merge to' from')
     _ -> isJust (merge to from)
+
+booleanable :: Type -> Bool
+booleanable t =
+  case t of
+    Numeric _ -> True
+    Fun _ _ _ -> True
+    Struct _ -> False
+    Void -> False
+    Any -> True
+    Zero -> True
+    Ptr _ -> True
+    Arr _ -> True
+    VaList -> False
 
 numeric :: Type -> Bool
 numeric t =

@@ -8,13 +8,17 @@ int main(int argc, char **argv) {
   z + 1;
   z - 1;
   1 + z;
-  int z = x - y;
+  int w = x - y;
   _Bool b;
   b = x == y;
   b = x > y;
   b = x < y;
   b = x >= y;
   b = x <= y;
+  b = !x;
+  b = x && y;
+  b = x && z;
+  b = x || y;
   b = !x;
   return 0;
 }
