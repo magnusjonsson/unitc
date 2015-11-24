@@ -1,3 +1,4 @@
+
 {-# LANGUAGE FlexibleInstances #-}
 
 module FindType where
@@ -26,27 +27,24 @@ instance FindType CExpr where
           CAssign op e1 e2 _ ->
               do mt1 <- findType e1
                  mt2 <- findType e2
-                 case (mt1, mt2) of
-                   (Just t1, Just t2) ->
-                     do mt1' <- case op of
-                          CAssignOp -> return mt2
-                          CAddAssOp -> return (Type.add t1 t2)
-                          CSubAssOp -> return (Type.sub t1 t2)
-                          CMulAssOp -> return (Type.mul t1 t2)
-                          CDivAssOp -> return (Type.div t1 t2)
-                          CRmdAssOp -> return (Type.rem t1 t2)
-                          CShlAssOp -> return (Type.shl t1 t2)
-                          CShrAssOp -> return (Type.shr t1 t2)
-                          COrAssOp -> return (Type.or t1 t2)
-                          CAndAssOp -> return (Type.and t1 t2)
-                          CXorAssOp -> return (Type.xor t1 t2)
-                        case mt1' of
-                          Nothing -> return ()
-                          Just t1' ->
-                            if Type.assignable t1 t1' then
-                              return ()
-                            else
-                              err expr ("Can't assign to type " ++ show t1 ++ " from type " ++ show t1')
+                 mt1' <- case op of
+                           CAssignOp -> return mt2
+                           CAddAssOp -> combineTypes expr "can't be added" Type.add mt1 mt2
+                           CSubAssOp -> combineTypes expr "can't be subtracted" Type.sub mt1 mt2
+                           CMulAssOp -> combineTypes expr "can't be multiplied" Type.mul mt1 mt2
+                           CDivAssOp -> combineTypes expr "can't be divided" Type.div mt1 mt2
+                           CRmdAssOp -> combineTypes expr "can't be remaindered" Type.rem mt1 mt2
+                           CShlAssOp -> combineTypes expr "can't be shifted" Type.shl mt1 mt2
+                           CShrAssOp -> combineTypes expr "can't be shifted" Type.shr mt1 mt2
+                           COrAssOp -> combineTypes expr "can't be ored" Type.or mt1 mt2
+                           CAndAssOp -> combineTypes expr "can't be anded" Type.and mt1 mt2
+                           CXorAssOp -> combineTypes expr "can't be xored" Type.xor mt1 mt2
+                 case (mt1, mt2, mt1') of
+                   (Just t1, Just t2, Just t1') ->
+                     if Type.assignable t1 t1' then
+                       return ()
+                     else
+                       err expr ("Can't assign to type " ++ show t1 ++ " from type " ++ show t1')
                    _ -> return ()
                  return mt1
           CCond e1 (Just e2) e3 _ ->
