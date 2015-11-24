@@ -238,7 +238,7 @@ instance FindType CConst where
 instance FindType CStat where
     findType stat =
         case stat of
-          CLabel _ _ _ _ -> err stat "TODO findType CLabel" >> return (Just Void)
+          CLabel _ _ _ _ -> return (Just Void)
           CCase e b _ -> return (Just Void)
           CCases e1 e2 b _ -> return (Just Void)
           CDefault b _ -> return (Just Void)
@@ -280,7 +280,7 @@ instance FindType CStat where
                ty <- findType body
                modifySymTab SymTab.closeScope
                return (Just Void)
-          CGoto _ _ -> err stat "TODO findType CGoto" >> return (Just Void)
+          CGoto _ _ -> return (Just Void)
           CGotoPtr e _ -> err stat "TODO findType CGotoPtr" >> return (Just Void)
           CCont _ -> return (Just Void)
           CBreak _ -> return (Just Void)
