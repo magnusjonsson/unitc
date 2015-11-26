@@ -46,7 +46,7 @@ addGccBuiltins =
 
 printError :: Err -> IO ()
 printError (Err pos msg) =
-  hPutStrLn stderr (posFile pos ++ ":" ++ show (posRow pos) ++ ": " ++ msg)
+  hPutStrLn stderr (posFile pos ++ ": " ++ show (posRow pos) ++ ": error: " ++ msg)
                
 analyzeCTranslUnit :: CTranslUnit -> Analysis ()
 analyzeCTranslUnit (CTranslUnit decls _) =
