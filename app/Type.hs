@@ -165,8 +165,8 @@ merge t1 t2 =
       (Ptr _, Ptr Void) -> Just t1
       (Numeric Nothing, Zero) -> Just t1
       (Zero, Numeric Nothing) -> Just t2
-      (Numeric (Just unit), Zero) | unit == Unit.one -> Just t1
-      (Zero, Numeric (Just unit)) | unit == Unit.one -> Just t2
+      (Numeric (Just unit), Zero) -> Just t1
+      (Zero, Numeric (Just unit)) -> Just t2
       (Numeric m1, Numeric m2) ->
           case (m1, m2) of
             (Just u1, Just u2) -> if u1 == u2 then Just (Numeric (Just u1)) else Nothing

@@ -454,7 +454,7 @@ checkInitializer ty initr =
              if Type.assignable ty' initType' then
                return ()
              else
-               err e ("Can't initialize " ++ show ty' ++ " using " ++ show initType')
+               err e ("Can't initialize " ++ show ty' ++ " from " ++ show initType')
            _ -> return ()
     CInitList initList _ -> checkInitList ty (Just 0) initList
 
