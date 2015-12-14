@@ -223,7 +223,7 @@ checkCompatibility pos t1 t2 =
     else
         return ()
 
-checkArgs :: NodeInfo -> [Maybe Type] -> [(Maybe String, Type)] -> Bool -> Analysis ()
+checkArgs :: NodeInfo -> [Maybe Type] -> [Type] -> Bool -> Analysis ()
 checkArgs node actuals formals acceptVarArgs =
     case (actuals, formals, acceptVarArgs) of
       ([], [], _) -> return ()
@@ -232,11 +232,11 @@ checkArgs node actuals formals acceptVarArgs =
       (_, [], False) -> err node "Too many args"
       (Nothing : as, f : fs, _) ->
           checkArgs node as fs acceptVarArgs
-      (Just a : as, (fname, ftype) : fs, _) ->
-          do if Type.assignable ftype a then
+      (Just a : as, f : fs, _) ->
+          do if Type.assignable f a then
                return ()
              else
-               err node ("Argument type mismatch. Found " ++ show a ++ ", expected " ++ show ftype ++ ".")
+               err node ("Argument type mismatch. Found " ++ show a ++ ", expected " ++ show f ++ ".")
              checkArgs node as fs acceptVarArgs
 
 instance FindType CConst where
@@ -556,13 +556,38 @@ applyTriplet pos declSpecTy isTypeDef (declr, initr, bitFieldSize) =
                case ty of
                 Just ty' ->
                   if isTypeDef then
-                      modifySymTab (SymTab.bindType name ty')
+                    bindType pos name ty'
                   else
-                      modifySymTab (SymTab.bindVariable name ty')
+                    bindVariable pos name ty'
                 Nothing -> err declr' ("Could not infer type for " ++ name)
              _ -> err pos ("Unhandled CDeclr: " ++ show declr)
          Nothing -> return ()
        return (ty, initr)
+
+
+bindType :: Pos a => a -> String -> Type -> Analysis ()
+bindType pos name ty =
+  do st <- getSymTab
+     case SymTab.lookupType name st of
+       Nothing -> return ()
+       Just oldTy ->
+         if ty /= oldTy then
+           err pos ("Type " ++ name ++ " redefined with different type. Old type is " ++ show oldTy ++ ", new type is " ++ show ty)
+         else
+           return ()
+     modifySymTab (SymTab.bindType name ty)
+
+bindVariable :: Pos a => a -> String -> Type -> Analysis ()
+bindVariable pos name ty =
+  do st <- getSymTab
+     case SymTab.shallowLookupVariable name st of
+       Nothing -> return ()
+       Just oldTy ->
+         if ty /= oldTy then
+           err pos (name ++ " redeclared with different type. Old type is " ++ show oldTy ++ ", new type is " ++ show ty)
+         else
+           return ()
+     modifySymTab (SymTab.bindVariable name ty)
 
 initTriplet :: Pos a => a -> (Maybe Type, Maybe CInit) -> Analysis ()
 initTriplet pos (ty, initr) =
@@ -593,27 +618,22 @@ deriveType1 d maybeTy =
                 [CDecl [CTypeSpec (CVoidType _)] [] _] ->
                   return (Just (Fun ty [] varArgs))
                 _ ->
-                  do maybeArgs <- mapM argNameAndType decls
+                  do maybeArgs <- mapM argType decls
                      case sequence maybeArgs of -- maybe monad
                        Nothing -> return Nothing
                        Just args -> return (Just (Fun ty args varArgs))
 
-argNameAndType :: CDecl -> Analysis (Maybe (Maybe String, Type))
-argNameAndType cdecl =
+argType :: CDecl -> Analysis (Maybe Type)
+argType cdecl =
     case cdecl of
       CDecl specs [] _ -> do ty <- findType specs
                              case ty of
-                               Just ty' -> return (Just (Nothing, ty'))
+                               Just ty' -> return (Just (Type.monomorphize ty'))
                                Nothing -> return Nothing
       CDecl specs [(Just (CDeclr maybeIdent derivedDeclrs _ attrs _), Nothing, Nothing)] _ ->
           do specType <- findType specs
              attrType <- findType attrs
-             ty <- deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
-             case ty of
-               Nothing -> return Nothing
-               Just ty' -> 
-                 do let maybeName = fmap (\(Ident name _ _) -> name) maybeIdent
-                    return (Just (maybeName, ty'))
+             deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
       _ -> do err cdecl "TODO strange arg declaration"
               return Nothing
 
@@ -625,8 +645,7 @@ applyCFunDef f =
              attrType <- findType attrs
              ty <- deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
              case (ident, ty) of
-               (Just (Ident name _ _), Just ty') ->
-                   do modifySymTab (SymTab.bindVariable name ty')
+               (Just (Ident name _ _), Just ty') -> bindVariable f name ty'
                (Nothing, _) -> err f "Strange fundef! Function has no name!"
                (_, Nothing) -> err f "Could not determine function type"
 
@@ -634,12 +653,16 @@ applyCFunDef f =
              modifySymTab SymTab.openScope
              modifySymTab (SymTab.bindVariable "__func__" (Type.Ptr Type.one))
              case ty of
-               Just (Fun rt args _) ->
-                   do modifySymTab (SymTab.setReturnType (Just rt))
-                      forM_ args $ \ arg ->
-                        case arg of
-                          (Just argName, argTy) -> modifySymTab (SymTab.bindVariable argName argTy)
-                          (Nothing, argTy) -> err f "Missing argument name"
+               Just (Fun rt argTypes _) ->
+                 case derivedDeclrs of
+                   CFunDeclr (Right (argDecls, varArgs)) attrs _ : _ ->
+                     do modifySymTab (SymTab.setReturnType (Just rt))
+                        forM_ (zip argDecls argTypes) $ \ (argDecl, argTy) ->
+                          case argDecl of
+                            CDecl _ [(Just (CDeclr (Just (Ident argName _ _)) _ _ _ _), _, _)] _ ->
+                              modifySymTab (SymTab.bindVariable argName argTy)
+                            _ -> err f "Missing argument name"
+                   _ -> err f "Strange FunDef"
                _ -> return ()
 
              _ <- findType body

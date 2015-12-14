@@ -7,7 +7,7 @@ import Control.Monad
 import Data.Maybe (isJust)
 
 data Type = Numeric (Maybe Unit.Unit) -- Must be (Just _) once fully formed
-          | Fun Type [(Maybe String, Type)] Bool -- returnType argNamesAndTypes acceptsVarArgs
+          | Fun Type [Type] Bool -- returnType names acceptsVarArgs
           | Struct String
           | Void
           | Any -- Wildcard, useful to bypass type checking for some builtins
@@ -194,7 +194,7 @@ merge t1 t2 =
       (Fun r1 a1 d1, Fun r2 a2 d2) ->
           -- maybe monad
           do r <- merge r1 r2
-             a <- mapM (uncurry mergeArg) (zip a1 a2)
+             a <- mapM (uncurry merge) (zip a1 a2)
              guard (d1 == d2)
              return (Fun r a d1)
       (Struct n1, Struct n2) -> if n1 == n2 then Just t1 else Nothing
@@ -202,11 +202,6 @@ merge t1 t2 =
       (Ptr t1', Ptr t2') -> do t' <- merge t1' t2'; return (Ptr t')
       (Arr t1', Arr t2') -> do t' <- merge t1' t2'; return (Arr t')
       _ -> Nothing
-
-mergeArg :: (Maybe String, Type) -> (Maybe String, Type) -> Maybe (Maybe String, Type)
-mergeArg (name1, ty1) (name2, ty2) =
-  do ty <- merge ty1 ty2
-     return (name1 `mplus` name2, ty)
 
 mergeMaybe :: Maybe Type -> Maybe Type -> Maybe Type
 mergeMaybe m1 m2 =

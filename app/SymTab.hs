@@ -36,11 +36,13 @@ closeScope p =
     Just p' -> p'
     Nothing -> error "Unbalanced openScope/closeScope"
 
+shallowLookupVariable :: String -> SymTab -> Maybe Type
+shallowLookupVariable name symtab =
+  Map.lookup name (variables symtab)
+
 lookupVariable :: String -> SymTab -> Maybe Type
 lookupVariable name symtab =
-    Map.lookup name (variables symtab) `mplus`
-       do p <- parent symtab
-          lookupVariable name p
+    shallowLookupVariable name symtab `mplus` (parent symtab >>= lookupVariable name)
     
 
 bindVariable :: String -> Type -> SymTab -> SymTab
