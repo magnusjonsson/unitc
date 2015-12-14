@@ -215,4 +215,12 @@ monomorphize :: Type -> Type
 monomorphize t =
     case t of
       Numeric Nothing -> Numeric (Just Unit.one) -- polymorphic unit becomes unit 1
-      _ -> t
+      Numeric (Just u) -> t
+      Void -> Void
+      Zero -> one
+      Struct _ -> t
+      VaList -> VaList
+      Any -> error "monomorphize any!"
+      Ptr t' -> Ptr (monomorphize t')
+      Arr t' -> Arr (monomorphize t')
+      Fun r a v -> Fun (monomorphize r) (map monomorphize a) v

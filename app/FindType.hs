@@ -556,9 +556,11 @@ applyTriplet pos declSpecTy isTypeDef (declr, initr, bitFieldSize) =
                case ty of
                 Just ty' ->
                   if isTypeDef then
+                    -- we don't monomorphize typedefs, as otherwise
+                    -- you can't add units to int32_t etc.
                     bindType pos name ty'
                   else
-                    bindVariable pos name ty'
+                    bindVariable pos name (Type.monomorphize ty')
                 Nothing -> err declr' ("Could not infer type for " ++ name)
              _ -> err pos ("Unhandled CDeclr: " ++ show declr)
          Nothing -> return ()
@@ -598,7 +600,7 @@ initTriplet pos (ty, initr) =
 deriveType :: [CDerivedDeclr] -> Maybe Type -> Analysis (Maybe Type)
 deriveType ds ty =
     case ds of
-      [] -> return (fmap Type.monomorphize ty)
+      [] -> return ty
       (d : dr) -> do ty' <- deriveType dr ty
                      deriveType1 d ty'
   
@@ -633,7 +635,8 @@ argType cdecl =
       CDecl specs [(Just (CDeclr maybeIdent derivedDeclrs _ attrs _), Nothing, Nothing)] _ ->
           do specType <- findType specs
              attrType <- findType attrs
-             deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
+             ty <- deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
+             return (fmap Type.monomorphize ty)
       _ -> do err cdecl "TODO strange arg declaration"
               return Nothing
 
@@ -644,6 +647,8 @@ applyCFunDef f =
           do specType <- findType specs
              attrType <- findType attrs
              ty <- deriveType derivedDeclrs (Type.mergeMaybe specType attrType)
+             ty <-return (fmap Type.monomorphize ty)
+
              case (ident, ty) of
                (Just (Ident name _ _), Just ty') -> bindVariable f name ty'
                (Nothing, _) -> err f "Strange fundef! Function has no name!"
