@@ -139,6 +139,23 @@ instance FindType CExpr where
                                  Just (Arr t1') -> return (Just t1')
                                  Just (Ptr t1') -> return (Just t1')
                                  Just _ -> err expr ("Not an array or pointer: " ++ show t1) >> return Nothing
+          CCall (CVar (Ident name _ _) _) [e1] _ | name == "fabs" || name == "fabsf" || name == "fabsl" ->
+            do t1 <- findType e1
+               case t1 of
+                 Nothing -> return Nothing
+                 Just t1' ->
+                   case Type.abs t1' of
+                     Nothing -> err expr ("Can't take the absolute value of " ++ show t1) >> return Nothing
+                     Just t1'' -> return (Just t1'')
+          CCall (CVar (Ident name _ _) _) [e1, e2] _ | name == "fmin" || name == "fminf" || name == "fminl" ->
+            do t1 <- findType e1
+               t2 <- findType e2
+               combineTypes expr "can't be taken the min of" Type.min t1 t2
+          CCall (CVar (Ident name _ _) _) [e1, e2] _ | name == "fmax" || name == "fmaxf" || name == "fmaxl" ->
+            do t1 <- findType e1
+               t2 <- findType e2
+               combineTypes expr "can't be taken the max of" Type.max t1 t2
+
           CCall e1 es _ ->
               do t1 <- findType e1
                  actuals <- mapM findType es

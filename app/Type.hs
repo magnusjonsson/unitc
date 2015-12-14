@@ -1,6 +1,6 @@
 module Type where
 
-import Prelude hiding (and, or, div)
+import Prelude hiding (and, or, div, abs, min, max)
 
 import qualified Unit
 import Control.Monad
@@ -16,7 +16,6 @@ data Type = Numeric (Maybe Unit.Unit) -- Must be (Just _) once fully formed
           | Arr Type
           | VaList
     deriving (Show, Eq)
-
 
 one :: Type
 one = Numeric (Just Unit.one)
@@ -115,6 +114,25 @@ neg t =
     Ptr _ -> Just one
     Arr _ -> Just one
     _ -> Nothing
+
+abs :: Type -> Maybe Type
+abs t =
+  case t of
+    Zero -> Just one
+    Numeric _ -> Just t
+    _ -> Nothing
+
+min :: Type -> Type -> Maybe Type
+min t1 t2 =
+  case (t1, t2) of
+    (Zero, Zero) -> Just one
+    (Zero, Numeric u) -> Just t2
+    (Numeric u, Zero) -> Just t1
+    (Numeric u1, Numeric u2) | u1 == u2 -> Just t1
+    _ -> Nothing
+
+max :: Type -> Type -> Maybe Type
+max = min
 
 assignable :: Type -> Type -> Bool
 assignable to from =
