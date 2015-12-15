@@ -549,18 +549,14 @@ applyTriplet pos declSpecTy isTypeDef (declr, initr, bitFieldSize) =
     do ty <- case declr of
                Just declr' -> deriveTypeFromCDeclr declSpecTy declr'
                Nothing -> return declSpecTy
+       ty <- if isTypeDef then return ty else return (fmap Type.monomorphize ty)
        case declr of
          Just declr' ->
            case declr' of
              CDeclr (Just (Ident name _ _)) _ _ _ _ ->
                case ty of
                 Just ty' ->
-                  if isTypeDef then
-                    -- we don't monomorphize typedefs, as otherwise
-                    -- you can't add units to int32_t etc.
-                    bindType pos name ty'
-                  else
-                    bindVariable pos name (Type.monomorphize ty')
+                  (if isTypeDef then bindType else bindVariable) pos name ty'
                 Nothing -> err declr' ("Could not infer type for " ++ name)
              _ -> err pos ("Unhandled CDeclr: " ++ show declr)
          Nothing -> return ()
