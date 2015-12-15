@@ -32,5 +32,7 @@ int main(int argc, char **argv) {
   a = 0 < 0;
   a = 0 <= 0;
 
+  a = !x;
+
   return 0;
 }

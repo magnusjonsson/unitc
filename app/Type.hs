@@ -110,7 +110,7 @@ neg :: Type -> Maybe Type
 neg t =
   case t of
     Zero -> Just one
-    Numeric (Just u) | u == Unit.one -> Just one
+    Numeric _ -> Just one
     Ptr _ -> Just one
     Arr _ -> Just one
     _ -> Nothing
