@@ -20,7 +20,7 @@ main = do
   let ns = newNameSupply
   let res = execParser translUnitP inputStream (initPos "") builtinTypeNames ns
   case res of
-    Left error -> print error
+    Left error -> print error >> exitFailure
     Right (u, _ns') ->
       let errors = execAnalysis (addGccBuiltins >> analyzeCTranslUnit u)
       in do mapM_ printError errors
