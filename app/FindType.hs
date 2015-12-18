@@ -254,10 +254,10 @@ instance FindType CConst where
 instance FindType CStat where
     findType stat =
         case stat of
-          CLabel _ _ _ _ -> return (Just Void)
-          CCase e b _ -> return (Just Void)
-          CCases e1 e2 b _ -> return (Just Void)
-          CDefault b _ -> return (Just Void)
+          CLabel _ s _ _ -> findType s
+          CCase e s _ -> findType s
+          CCases e1 e2 s _ -> findType s
+          CDefault s _ -> findType s
           CExpr Nothing _ -> return (Just Void)
           CExpr (Just e) _ -> findType e
           CCompound _ blockItems _ -> blockType blockItems

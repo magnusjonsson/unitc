@@ -1,7 +1,9 @@
 #define unit(u) __attribute__((unit(u)))
 
 int main(int argc, char **argv) {
-  unit(m/s) a = 0;
-  a = 0;
+  switch(0) {
+  case 0:
+    1 + (int unit(m)) 2;
+  }
   return 0;
-}
+};

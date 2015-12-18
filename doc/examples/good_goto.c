@@ -5,5 +5,5 @@ int main(int argc, char **argv) {
   i++;
   goto label;
  done:
-  return;
+  return 0;
 }

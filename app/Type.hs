@@ -137,6 +137,8 @@ max = min
 assignable :: Type -> Type -> Bool
 assignable to from =
   case (to, from) of
+    (Zero, Zero) -> True
+    (Zero, _) -> False
     (Ptr (Fun _ _ _), Fun _ _ _) -> assignable to (Ptr from)
     (Ptr Void, Arr from') -> True
     (Ptr to', Arr from') -> isJust (merge to' from')
