@@ -13,20 +13,25 @@ import System.Exit
 main :: IO ()
 main = do
   rawArgs <- getArgs
-  let args = filter (/= "-g3") rawArgs
+  let args = filter (\arg -> not (elem arg ["-g3", "-fopt-info"])) rawArgs
   let cpp = newGCC "gcc"
-  let (Right (cppArgs, _ignoredArgs)) = parseCPPArgs cpp args
-  Right inputStream <- runPreprocessor cpp cppArgs
-  let ns = newNameSupply
-  let res = execParser translUnitP inputStream (initPos "") builtinTypeNames ns
-  case res of
+  case parseCPPArgs cpp args of
     Left error -> print error >> exitFailure
-    Right (u, _ns') ->
-      let errors = execAnalysis (addGccBuiltins >> analyzeCTranslUnit u)
-      in do mapM_ printError errors
-            case errors of
-             [] -> exitSuccess
-             _ -> exitFailure
+    Right (cppArgs, _ignoredArgs) ->
+      do ppResult <- runPreprocessor cpp cppArgs
+         case ppResult of
+           Left error -> print error >> exitFailure
+           Right inputStream ->
+             do let ns = newNameSupply
+                let res = execParser translUnitP inputStream (initPos "") builtinTypeNames ns
+                case res of
+                  Left error -> print error >> exitFailure
+                  Right (u, _ns') ->
+                    let errors = execAnalysis (addGccBuiltins >> analyzeCTranslUnit u)
+                    in do mapM_ printError errors
+                          case errors of
+                            [] -> exitSuccess
+                            _ -> exitFailure
 
 addGccBuiltins :: Analysis ()
 addGccBuiltins =
