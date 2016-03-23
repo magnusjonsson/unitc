@@ -121,8 +121,8 @@ instance FindType CExpr where
           CSizeofExpr e _ -> do _ <- findType e
                                 return (Just one)
           CSizeofType decl _ -> return (Just one)
-          CAlignofExpr e _ -> err expr "TODO findType CAlignofExpr" >> return Nothing
-          CAlignofType decl _ -> err expr "TODO findType CAlignofType" >> return Nothing
+          CAlignofExpr e _ -> return (Just one)
+          CAlignofType decl _ -> return (Just one)
           CComplexReal e _ -> err expr "TODO findType CComplexReal" >> return Nothing
           CComplexImag e _ -> err expr "TODO findType CComplexImag" >> return Nothing
           CIndex e1 e2 _ -> do t1 <- findType e1
