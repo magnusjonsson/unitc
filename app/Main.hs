@@ -9,11 +9,17 @@ import Language.C.System.Preprocess as Preprocess
 import System.IO
 import System.Environment (getArgs)
 import System.Exit
+import Data.List (isPrefixOf)
+
+argOk :: String -> Bool
+argOk arg =
+  not ("-g" `isPrefixOf` arg) &&
+  not ("-f" `isPrefixOf` arg)
 
 main :: IO ()
 main = do
   rawArgs <- getArgs
-  let args = filter (\arg -> not (elem arg ["-g3", "-fopt-info"])) rawArgs
+  let args = filter argOk rawArgs
   let cpp = newGCC "gcc"
   case parseCPPArgs cpp args of
     Left error -> print error >> exitFailure
