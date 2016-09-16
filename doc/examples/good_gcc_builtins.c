@@ -21,5 +21,8 @@ int main(int argc, char **argv) {
   b = __builtin_strncpy(c, "a", 1);
   a = __builtin_ctzl(a);
   varargsfn(0);
+  __builtin_prefetch(b);
+  __builtin_prefetch(b, 1);
+  __builtin_prefetch(b, 1, 1);
   return a;
 }
