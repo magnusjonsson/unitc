@@ -4,3 +4,8 @@ enum yesno {
 };
 
 enum yesno decision;
+
+enum /* anonymous */ {
+  oui,
+  non,
+};
