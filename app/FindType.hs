@@ -398,7 +398,7 @@ applyEnumBinding (ident, maybeExpr) =
                                     return ()
                                   else
                                     err e ("Expected numeric with unit 1, got " ++ show ty')
-             modifySymTab (SymTab.bindVariable name (Numeric (Just Unit.one)))
+             modifySymTab (SymTab.bindGlobalVariable name (Numeric (Just Unit.one)))
 
 instance FindType CTypeQual where
     findType typeQual =

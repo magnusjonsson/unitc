@@ -43,7 +43,6 @@ shallowLookupVariable name symtab =
 lookupVariable :: String -> SymTab -> Maybe Type
 lookupVariable name symtab =
     shallowLookupVariable name symtab `mplus` (parent symtab >>= lookupVariable name)
-    
 
 bindVariable :: String -> Type -> SymTab -> SymTab
 bindVariable name ty st =
@@ -53,6 +52,12 @@ bindVariable name ty st =
 bindVariables :: [(String, Type)] -> SymTab -> SymTab
 bindVariables pairs st =
     List.foldl' (\acc (name,ty) -> bindVariable name ty acc) st pairs
+
+bindGlobalVariable :: String -> Type -> SymTab -> SymTab
+bindGlobalVariable name ty st =
+  case parent st of
+    Nothing -> bindVariable name ty st
+    Just st' -> st { parent = Just (bindGlobalVariable name ty st') }
 
 setReturnType :: Maybe Type -> SymTab -> SymTab
 setReturnType rt st =
