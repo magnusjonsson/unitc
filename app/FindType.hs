@@ -8,6 +8,7 @@ import Monad.Analysis
 import qualified SymTab
 import Type
 import qualified Unit
+import Data.List (isPrefixOf)
 
 import Control.Monad
 import Language.C.Pretty
@@ -138,6 +139,7 @@ instance FindType CExpr where
                                  Nothing -> return Nothing
                                  Just (Arr t1') -> return (Just t1')
                                  Just (Ptr t1') -> return (Just t1')
+                                 Just (Numeric _) -> return t1 -- for vectors, since we don't track the __vector_size__ attribute in our type system
                                  Just _ -> err expr ("Not an array or pointer: " ++ show t1) >> return Nothing
           CCall (CVar (Ident name _ _) _) [e1] _ | name == "fabs" || name == "fabsf" || name == "fabsl" ->
             do t1 <- findType e1
@@ -185,7 +187,8 @@ instance FindType CExpr where
                  Just (index, ty'') -> return (Just ty'')
           CVar (Ident name _ _) _ -> do st <- getSymTab
                                         case SymTab.lookupVariable name st of
-                                          Nothing -> do err expr ("Variable not in scope: " ++ name)
+                                          Nothing -> do unless ("__builtin_" `isPrefixOf` name) $
+                                                          err expr ("Variable not in scope: " ++ name)
                                                         return Nothing
                                           Just ty -> return (Just ty)
           CConst c -> findType c
@@ -353,8 +356,7 @@ instance FindType CTypeSpec where
           CTypeOfType t _ ->
               do err typeSpec "CTypeSpec: typeof(type) type specifiers not yet handled"
                  return Nothing
---          _ -> do err typeSpec ("Missing case: " ++ show typeSpec)
---                  return Nothing
+          CInt128Type _ -> return (Just (Numeric Nothing))
 
 instance FindType CStructUnion where
     findType csu =
@@ -457,7 +459,7 @@ isTypeDef =
          _ -> False)
 
 deriveTypeFromCDeclr :: Maybe Type -> CDeclr -> Analysis (Maybe Type)
-deriveTypeFromCDeclr declSpecTy (CDeclr _ derivedDeclrs _ attrs _) =
+deriveTypeFromCDeclr declSpecTy (CDeclr _ derivedDeclrs _ attrs pos) =
     do attrType <- findType attrs
        deriveType derivedDeclrs (Type.mergeMaybe declSpecTy attrType)
 
@@ -542,7 +544,8 @@ getIndex pos ty i =
                      case SymTab.lookupFieldByIndex i' fields of
                        Nothing -> return Nothing
                        Just (_, fieldty) -> return (Just fieldty)
-        _ -> err pos ("Not an array/struct/union: " ++ show ty') >> return Nothing
+        Numeric _ -> return ty -- For vectors, since we don't track the __vector_size__ attribute in our type system
+        _ -> err pos ("Not an array/struct/union/vector: " ++ show ty') >> return Nothing
 
 applyTriplet :: Pos a => a -> Maybe Type -> Bool -> Triplet -> Analysis (Maybe Type, Maybe CInit)
 applyTriplet pos declSpecTy isTypeDef (declr, initr, bitFieldSize) =

@@ -103,6 +103,7 @@ instance FindUnit CTypeSpec where
           CTypeOfType _t _ ->
               do err typeSpec "typeof(type) type specifiers not yet handled"
                  return Nothing
+          CInt128Type _ -> return Nothing
 
 instance FindUnit CTypeQual where
     findUnit typeQual =
