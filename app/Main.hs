@@ -3,27 +3,24 @@ import Monad.Analysis
 import SymTab
 import Type
 import Control.Monad
-import Control.Exception (catch, IOException)
 import Language.C as C
 import Language.C.System.GCC as GCC
 import Language.C.System.Preprocess as Preprocess
 import System.IO
-import System.Environment (getArgs, getEnv)
+import System.Environment (getArgs, lookupEnv)
 import System.Exit
 import Data.List (isPrefixOf)
+import Data.Maybe (fromMaybe)
 
 argOk :: String -> Bool
 argOk arg =
   not ("-g" `isPrefixOf` arg) &&
   not ("-f" `isPrefixOf` arg)
 
-catchIO :: IO a -> (IOException -> IO a) -> IO a
-catchIO = catch
-
 main :: IO ()
 main = do
   rawArgs <- getArgs
-  gccExecutable <- getEnv "UNITC_GCC" `catchIO` (\_ -> return "gcc")
+  gccExecutable <- fromMaybe "gcc" `fmap` lookupEnv "UNITC_GCC"
   let args = filter argOk rawArgs
   let cpp = newGCC gccExecutable
   case parseCPPArgs cpp args of
