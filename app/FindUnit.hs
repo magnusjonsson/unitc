@@ -77,6 +77,8 @@ instance FindUnit CDeclSpec where
           CStorageSpec _ -> return Nothing
           CTypeSpec typeSpec -> findUnit typeSpec
           CTypeQual typeQual -> findUnit typeQual
+          CFunSpec funSpec -> return Nothing
+          CAlignSpec alignSpec -> return Nothing
 
 instance FindUnit CTypeSpec where
     findUnit typeSpec =
@@ -104,6 +106,9 @@ instance FindUnit CTypeSpec where
               do err typeSpec "typeof(type) type specifiers not yet handled"
                  return Nothing
           CInt128Type _ -> return Nothing
+          CFloat128Type _ -> return Nothing
+          CAtomicType _ _ -> do err typeSpec "_atomic(type) type specifiers not yet handled"
+                                return Nothing
 
 instance FindUnit CTypeQual where
     findUnit typeQual =
@@ -111,8 +116,10 @@ instance FindUnit CTypeQual where
           CConstQual _ -> return Nothing
           CVolatQual _ -> return Nothing
           CRestrQual _ -> return Nothing
-          CInlineQual _ -> return Nothing
           CAttrQual attr -> findUnit attr
+          CAtomicQual _ -> return Nothing
+          CNullableQual _ -> return Nothing
+          CNonnullQual _ -> return Nothing
 
 instance FindUnit a => FindUnit (Maybe a) where
     findUnit m =

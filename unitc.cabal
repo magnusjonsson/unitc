@@ -6,7 +6,7 @@ homepage:            https://github.com/magnusjonsson/unitc
 license:             BSD2
 license-file:        LICENSE
 author:              Magnus Jonsson
-maintainer:          jmagnusj@gmail.com
+maintainer:          Magnus.Jonsson@twosigma.com
 -- copyright:           
 category:            Language
 build-type:          Simple
@@ -23,7 +23,7 @@ executable unitc
     Type
     Unit
   -- other-extensions:    
-  build-depends:       base >=4.5, containers >=0.5.6.2, extra, language-c >= 0.5.0, transformers
+  build-depends:       base >=4.5, containers >=0.5.6.2, extra, language-c >= 0.7.0, transformers
   hs-source-dirs:      app
   default-language:    Haskell2010
   ghc-options:         -O2

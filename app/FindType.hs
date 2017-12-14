@@ -1,4 +1,3 @@
-
 {-# LANGUAGE FlexibleInstances #-}
 
 module FindType where
@@ -94,6 +93,7 @@ instance FindType CExpr where
                         [(Just declr, Nothing, Nothing)] -> deriveTypeFromCDeclr td declr
                         _ -> err expr "TODO findType CCast with strange triplets" >> return Nothing
                return (fmap Type.monomorphize td')
+          CCast (CStaticAssert _ _ _) e _ -> err expr "TODO findType CCast with CStaticAssert" >> return Nothing
           CUnary op e _ ->
               do t <- findType e
                  case op of
@@ -199,9 +199,11 @@ instance FindType CExpr where
                  _ -> err expr "TODO CCompoundLit with triplets"
                checkInitList tspecs (Just 0) initList
                return tspecs
+          CCompoundLit (CStaticAssert _ _ _ ) e _ -> err expr "TODO findType CCompoundLit with CStaticAssert" >> return Nothing
           CStatExpr stat _ -> findType stat
           CLabAddrExpr ident _ -> err expr "TODO findType CLabAddrExpr" >> return Nothing
           CBuiltinExpr builtin -> findType builtin
+          CGenericSelection _ _ _ -> err expr "TODO findType CGenericSelection" >> return Nothing
 
 instance FindType CBuiltin where
   findType builtin =
@@ -209,6 +211,7 @@ instance FindType CBuiltin where
       CBuiltinVaArg e d _ -> err builtin "FindType CBuiltinVaArg" >> return Nothing
       CBuiltinOffsetOf _ _ _ -> return (Just Type.one)
       CBuiltinTypesCompatible decl1 decl2 _ -> err builtin "FindType CBuiltinTypesCompatible" >> return Nothing
+      CBuiltinConvertVector _ _ _ -> err builtin "FindType CBuiltinConvertVector" >> return Nothing
 
 combineTypes :: Pos a => a -> String -> (Type -> Type -> Maybe Type) -> Maybe Type -> Maybe Type -> Analysis (Maybe Type)
 combineTypes pos msg f t1 t2 =
@@ -327,6 +330,8 @@ instance FindType CDeclSpec where
           CStorageSpec _ -> return Nothing
           CTypeSpec typeSpec -> findType typeSpec
           CTypeQual typeQual -> findType typeQual
+          CFunSpec _ -> return Nothing
+          CAlignSpec _ -> return Nothing 
 
 instance FindType CTypeSpec where
     findType typeSpec =
@@ -357,6 +362,10 @@ instance FindType CTypeSpec where
               do err typeSpec "CTypeSpec: typeof(type) type specifiers not yet handled"
                  return Nothing
           CInt128Type _ -> return (Just (Numeric Nothing))
+          CFloat128Type _ -> return (Just (Numeric Nothing))
+          CAtomicType t _ ->
+              do err typeSpec "CTypeSpec: _Atomic(type) type specifiers not yet handled"
+                 return Nothing
 
 instance FindType CStructUnion where
     findType csu =
@@ -408,8 +417,10 @@ instance FindType CTypeQual where
           CConstQual _ -> return Nothing
           CVolatQual _ -> return Nothing
           CRestrQual _ -> return Nothing
-          CInlineQual _ -> return Nothing
           CAttrQual attr -> findType attr
+          CAtomicQual _ -> return Nothing
+          CNullableQual _ -> return Nothing
+          CNonnullQual _ -> return Nothing
 
 instance FindType CAttr where
     findType attr =
@@ -448,6 +459,9 @@ applyCDecl decl =
           do ty <- findType declSpecs
              typeInitPairs <- mapM (applyTriplet decl ty (isTypeDef declSpecs)) triplets
              mapM_ (initTriplet decl) typeInitPairs
+      CStaticAssert e str _ ->
+          do ty <- findType e
+             return ()
 
 type Triplet = (Maybe CDeclr, Maybe CInit, Maybe CExpr)
                            
