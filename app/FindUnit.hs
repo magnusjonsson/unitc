@@ -68,6 +68,9 @@ parseCExprAsUnit expr =
              return (liftM2 Unit.div u1 u2)
       CVar (Ident name _ _) _ -> return (Just (Unit.fundamental name))
       CConst (CIntConst (CInteger 1 _ _) _) -> return (Just Unit.one)
+      CCall (CVar (Ident name _ _) _) [e] _ | elem name ["sqrt", "sqrtf", "sqrtl"] ->
+          do u <- parseCExprAsUnit e
+             return (fmap Unit.sqrt u)
       _ -> do err expr ("Can't parse expression as unit: " ++ show (pretty expr))
               return Nothing
 

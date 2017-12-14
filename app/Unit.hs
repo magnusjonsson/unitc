@@ -32,6 +32,8 @@ div (Unit u1) (Unit u2) = Unit (Map.mergeWithKey (\_k p1 p2 -> nonzero (p1 - p2)
 pow :: Unit -> Q -> Unit
 pow (Unit u) q = Unit (Map.map (q *) u)
 
+sqrt :: Unit -> Unit
+sqrt u = pow u (1%2)
 
 instance Show Unit where
   show (Unit u) =

@@ -17,6 +17,8 @@ data Type = Numeric (Maybe Unit.Unit) -- Must be (Just _) once fully formed
           | VaList
     deriving (Show, Eq)
 
+type Unit = Unit.Unit
+
 one :: Type
 one = Numeric (Just Unit.one)
 
@@ -32,6 +34,19 @@ add (Numeric u) (Arr t) = if u == Just Unit.one then Just (Ptr t) else Nothing
 add (Numeric u) (Ptr t) = if u == Just Unit.one then Just (Ptr t) else Nothing
 add _ _ = Nothing
 
+applyMathFn :: (Unit -> Unit) -> Type -> Maybe Type
+applyMathFn fn t =
+  do unit <- case t of
+               Zero -> Just Unit.one
+               Numeric (Just unit) -> Just unit
+               _ -> Nothing
+     return (Numeric (Just (fn unit)))
+
+pow :: Type -> Unit.Q -> Maybe Type
+pow ty power = applyMathFn (`Unit.pow` power) ty
+
+sqrt :: Type -> Maybe Type
+sqrt ty = applyMathFn Unit.sqrt ty
 
 sub :: Type -> Type -> Maybe Type
 sub x Zero = sub x one
@@ -116,11 +131,7 @@ neg t =
     _ -> Nothing
 
 abs :: Type -> Maybe Type
-abs t =
-  case t of
-    Zero -> Just one
-    Numeric _ -> Just t
-    _ -> Nothing
+abs = applyMathFn id
 
 min :: Type -> Type -> Maybe Type
 min t1 t2 =

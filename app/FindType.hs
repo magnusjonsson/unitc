@@ -157,6 +157,9 @@ instance FindType CExpr where
             do t1 <- findType e1
                t2 <- findType e2
                combineTypes expr "can't be taken the max of" Type.max t1 t2
+          CCall (CVar (Ident name _ _) _) [e] _ | name == "sqrt" || name == "sqrtf" || name == "sqrtl" ->
+            do t <- findType e
+               return (t >>= Type.sqrt)
 
           CCall e1 es _ ->
               do t1 <- findType e1
