@@ -29,7 +29,7 @@
 #include <semaphore.h>
 #include <spawn.h>
 #include <strings.h>
-#include <stropts.h>
+//#include <stropts.h>
 #include <sys/ipc.h>
 #include <sys/mman.h>
 #include <sys/msg.h>

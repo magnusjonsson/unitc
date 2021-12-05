@@ -9,7 +9,7 @@ for f in doc/examples/good*.c; do
     echo OK
   else
     echo FAIL
-    echo -n "$OUTPUT"
+    echo "$OUTPUT"
     exitcode=1
   fi
 done

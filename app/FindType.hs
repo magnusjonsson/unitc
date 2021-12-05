@@ -141,7 +141,7 @@ instance FindType CExpr where
                                  Just (Ptr t1') -> return (Just t1')
                                  Just (Numeric _) -> return t1 -- for vectors, since we don't track the __vector_size__ attribute in our type system
                                  Just _ -> err expr ("Not an array or pointer: " ++ show t1) >> return Nothing
-          CCall (CVar (Ident name _ _) _) [e1] _ | name == "fabs" || name == "fabsf" || name == "fabsl" ->
+          CCall (CVar (Ident name _ _) _) [e1] _ | elem name ["fabs", "fabsf", "fabsl", "abs", "labs", "llabs", "imaxabs"] ->
             do t1 <- findType e1
                case t1 of
                  Nothing -> return Nothing
@@ -382,11 +382,12 @@ instance FindType CStructUnion where
              CStruct _ _ Nothing _ _ -> return ()
              CStruct _ _ (Just fields) _ _ ->
                  do modifySymTab SymTab.openScope
-                    mapM_ applyCDecl fields
+                    mapM_ applyCDeclInStruct fields
                     fieldSymTab <- getSymTab
                     modifySymTab (SymTab.bindTag name (reverse (SymTab.variablesRevList fieldSymTab)))
                     modifySymTab SymTab.closeScope
            return (Just (Struct name))
+
 
 instance FindType CEnum where
     findType enum =
@@ -465,6 +466,17 @@ applyCDecl decl =
       CStaticAssert e str _ ->
           do ty <- findType e
              return ()
+
+applyCDeclInStruct :: CDecl -> Analysis ()
+applyCDeclInStruct decl =
+  -- handle any anonymous struct/union specially
+  case decl of
+    CDecl declSpecs [] _ ->
+      let loop [] = applyCDecl decl
+          loop (CTypeSpec (CSUType (CStruct _ Nothing (Just fields) _ _) _) : _) = mapM_ applyCDeclInStruct fields
+          loop (_ : rest) = loop rest
+      in loop declSpecs
+    _ -> applyCDecl decl
 
 type Triplet = (Maybe CDeclr, Maybe CInit, Maybe CExpr)
                            

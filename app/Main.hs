@@ -11,6 +11,7 @@ import System.Environment (getArgs, lookupEnv)
 import System.Exit
 import Data.List (isPrefixOf)
 import Data.Maybe (fromMaybe)
+import qualified Data.ByteString.Char8 as B
 
 argOk :: String -> Bool
 argOk arg =
@@ -24,22 +25,28 @@ main = do
   let args = filter argOk rawArgs
   let cpp = newGCC gccExecutable
   case parseCPPArgs cpp args of
-    Left error -> print error >> exitFailure
+    Left error -> hPutStrLn stderr error >> exitFailure
     Right (cppArgs, _ignoredArgs) ->
       do ppResult <- runPreprocessor cpp cppArgs
          case ppResult of
-           Left error -> print error >> exitFailure
+           Left error -> hPutStrLn stderr ("preprocessor failed with exit code " ++ show error) >> exitFailure
            Right inputStream ->
+             let inputStream' = removeHashLines inputStream in
              do let ns = newNameSupply
-                let res = execParser translUnitP inputStream (initPos "") builtinTypeNames ns
+                let res = execParser translUnitP inputStream' (initPos "") builtinTypeNames ns
                 case res of
-                  Left error -> print error >> exitFailure
+                  Left error -> hPutStrLn stderr (show error) >> exitFailure
                   Right (u, _ns') ->
                     let errors = execAnalysis (addGccBuiltins >> analyzeCTranslUnit u)
                     in do mapM_ printError errors
                           case errors of
                             [] -> exitSuccess
                             _ -> exitFailure
+
+removeHashLines :: B.ByteString -> B.ByteString
+removeHashLines inputStream =
+    B.unlines $ filter (\line -> B.length line == 0 || B.head line /= '#') $ B.lines inputStream
+
 
 addGccBuiltins :: Analysis ()
 addGccBuiltins =
