@@ -109,7 +109,7 @@ instance FindUnit CTypeSpec where
               do err typeSpec "typeof(type) type specifiers not yet handled"
                  return Nothing
           CInt128Type _ -> return Nothing
-          CFloat128Type _ -> return Nothing
+          CFloatNType _ _ _ -> return Nothing
           CAtomicType _ _ -> do err typeSpec "_atomic(type) type specifiers not yet handled"
                                 return Nothing
 
@@ -123,6 +123,8 @@ instance FindUnit CTypeQual where
           CAtomicQual _ -> return Nothing
           CNullableQual _ -> return Nothing
           CNonnullQual _ -> return Nothing
+          CClRdOnlyQual _ -> return Nothing
+          CClWrOnlyQual _ -> return Nothing
 
 instance FindUnit a => FindUnit (Maybe a) where
     findUnit m =
