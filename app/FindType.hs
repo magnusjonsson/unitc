@@ -365,7 +365,7 @@ instance FindType CTypeSpec where
               do err typeSpec "CTypeSpec: typeof(type) type specifiers not yet handled"
                  return Nothing
           CInt128Type _ -> return (Just (Numeric Nothing))
-          CFloat128Type _ -> return (Just (Numeric Nothing))
+          CFloatNType _ _ _ -> return (Just (Numeric Nothing))
           CAtomicType t _ ->
               do err typeSpec "CTypeSpec: _Atomic(type) type specifiers not yet handled"
                  return Nothing
@@ -425,6 +425,8 @@ instance FindType CTypeQual where
           CAtomicQual _ -> return Nothing
           CNullableQual _ -> return Nothing
           CNonnullQual _ -> return Nothing
+          CClRdOnlyQual _ -> return Nothing
+          CClWrOnlyQual _ -> return Nothing
 
 instance FindType CAttr where
     findType attr =
