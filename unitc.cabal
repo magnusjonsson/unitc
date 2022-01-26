@@ -23,7 +23,7 @@ executable unitc
     Type
     Unit
   -- other-extensions:    
-  build-depends:       base >=4.5, containers >=0.5.6.2, extra, language-c >= 0.7.0, transformers, bytestring
+  build-depends:       base >=4.5, containers >=0.5.6.2, extra, language-c >= 0.9.0, transformers, bytestring
   hs-source-dirs:      app
   default-language:    Haskell2010
   ghc-options:         -O2
