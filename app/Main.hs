@@ -11,7 +11,6 @@ import System.Environment (getArgs, lookupEnv)
 import System.Exit
 import Data.List (isPrefixOf)
 import Data.Maybe (fromMaybe)
-import qualified Data.ByteString.Char8 as B
 
 argOk :: String -> Bool
 argOk arg =
@@ -31,9 +30,8 @@ main = do
          case ppResult of
            Left error -> hPutStrLn stderr ("preprocessor failed with exit code " ++ show error) >> exitFailure
            Right inputStream ->
-             let inputStream' = removeHashLines inputStream in
              do let ns = newNameSupply
-                let res = execParser translUnitP inputStream' (initPos "") builtinTypeNames ns
+                let res = execParser translUnitP inputStream (initPos "") builtinTypeNames ns
                 case res of
                   Left error -> hPutStrLn stderr (show error) >> exitFailure
                   Right (u, _ns') ->
@@ -42,10 +40,6 @@ main = do
                           case errors of
                             [] -> exitSuccess
                             _ -> exitFailure
-
-removeHashLines :: B.ByteString -> B.ByteString
-removeHashLines inputStream =
-    B.unlines $ filter (\line -> B.length line == 0 || B.head line /= '#') $ B.lines inputStream
 
 
 addGccBuiltins :: Analysis ()
