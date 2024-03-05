@@ -358,9 +358,7 @@ instance FindType CTypeSpec where
                    Just ty -> return (Just ty)
                    Nothing -> do err typeSpec ("Could not find typedef: " ++ name)
                                  return Nothing
-          CTypeOfExpr e _ ->
-              do err typeSpec "CTypeSpec: typeof(expr) type specifiers not yet handled"
-                 return Nothing
+          CTypeOfExpr e _ -> findType e
           CTypeOfType t _ ->
               do err typeSpec "CTypeSpec: typeof(type) type specifiers not yet handled"
                  return Nothing
