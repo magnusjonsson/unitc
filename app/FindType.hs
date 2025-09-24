@@ -49,7 +49,6 @@ instance FindType CExpr where
                  return mt1
           CCond e1 (Just e2) e3 _ ->
               do t1 <- findType e1
-                 _ <- combineTypes expr "don't match" Type.add t1 (Just Type.one)
                  t2 <- findType e2
                  t3 <- findType e3
                  case (t2, t3) of
